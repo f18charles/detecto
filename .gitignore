@@ -1,1 +1,11 @@
 .claude/
+
+# Python / backend
+__pycache__/
+*.pyc
+.venv/
+backend/detections.db
+backend/.env
+
+# Node / frontend (frontend/ also has its own .gitignore)
+node_modules/
