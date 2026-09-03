@@ -20,10 +20,10 @@ export const detect = async (formData) => {
     }
 }
 
-// history → retrieves past detections from storage.
-export const history = async () => {
+// history → retrieves past detections from storage. with filters
+export const history = async (params) => {
     try {
-        const response = await api.get('/history')
+        const response = await api.get('/history', { params })
         return response.data
     } catch (error) {
         console.error("Failed to retrieve the history")
@@ -34,7 +34,7 @@ export const history = async () => {
 // reset → clears stored detection history.
 export const reset = async () => {
     try {
-        const response = await api.delete('/reset')
+        const response = await api.post('/reset')
         return response.data
     } catch (error) {
         console.error("Failed to clear history")
