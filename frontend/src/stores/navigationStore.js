@@ -1,0 +1,54 @@
+import {create} from 'zustand'
+
+export const MODES = {
+    NAV: 'nav',
+    LIST: 'list',
+    RESULT: 'result'
+}
+
+export const useNavigationStore = create((set, get) => ({
+    mode: MODES.NAV,
+    page: 0, // 0 - Detect, 1 - History
+    currPage: 0, // 0 - Detect, 1 - History
+    selectedItem: 0,
+    results: null, // {type: 'sample' | 'upload' / 'history', data: {...}}
+
+    // NAV Mode
+    movePage: (init) => {
+        const {mode, page} = get()
+        if (mode !== MODES.NAV) return
+        const next = page + init
+        if (next < 0 || next > 1) return
+        set({page: next, currPage: next, selectedItem: 0})
+    },
+
+    // LIST Mode
+    moveInList: (init, listLength) => {
+        const {mode, selectedItem} = get()
+        if (mode !== MODES.LIST) return
+        const next = selectedItem + init
+        if (next < 0 || next >= listLength) return
+        set({selectedItem: next})
+    },
+
+    // Enter lists
+    enterList: () => {
+        if (get().mode !== MODES.NAV) return
+        set({ mode: MODES.LIST, selectedItem: 0 })
+    },
+
+    // Enter results shows the results of the detections and the history
+    enterResult: (results) => {
+        if (get().mode !== MODES.LIST) return
+        set({ mode: MODES.RESULT, results })
+    },
+
+    popUp: () => {
+        const {mode} = get()
+        if (mode === MODES.RESULT) {
+            set({mode: MODES.LIST, results: null})
+        } else if (mode === MODES.LIST) {
+            set({mode:MODES.NAV, selectedItem: 0})
+        }
+    },
+}))
