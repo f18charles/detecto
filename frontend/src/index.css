@@ -10,20 +10,20 @@ that are not part of Tailwindcss.*/
 
     /* Colors */
     /* Chassis */
-    --silvers-1: #2E3034;
-    --silvers-2: #4c4f55;
-    --silvers-3: #797d84;
-    --silvers-4: #52555b;
-    --silvers-5: #34363b;
+    --color-silvers-1: #2E3034;
+    --color-silvers-2: #4c4f55;
+    --color-silvers-3: #797d84;
+    --color-silvers-4: #52555b;
+    --color-silvers-5: #34363b;
 
-    --chassis-text:#e7e8ea;
-    --chassis-muted:#9a9ca0;
-    --chassis-dim:#7d7f83;
+    --color-chassis-text:#e7e8ea;
+    --color-chassis-muted:#9a9ca0;
+    --color-chassis-dim:#7d7f83;
 
     /* Displays */
-    --display-bg:#030402;
-    --display-green:#4aff8a;
-    --display-green-dim:#3ddc97;
+    --color-display-bg:#030402;
+    --color-display-green:#4aff8a;
+    --color-display-green-dim:#3ddc97;
 }
 
 @layer base {
@@ -39,7 +39,7 @@ These are styles that are not in tailwindcss */
     /* chassis: body & buttons */
     .silver-body{
         background-image: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.025) 0px, rgb(255 255 255 / 0.025) 1px, transparent 1px, transparent 3px),
-      linear-gradient(100deg, var(--silvers-5) 0%, var(--silvers-2) 22%, var(--silvers-3) 50%, var(--silvers-4) 74%, var(--silvers-1) 100%);
+      linear-gradient(100deg, var(--color-silvers-5) 0%, var(--color-silvers-2) 22%, var(--color-silvers-3) 50%, var(--color-silvers-4) 74%, var(--color-silvers-1) 100%);
       box-shadow:
             inset 0 1px 0 rgb(255 255 255 / 0.12),
             inset 0 -2px 6px rgb(0 0 0 / 0.5),
@@ -100,7 +100,7 @@ These are styles that are not in tailwindcss */
   /* ---- Screen: glass & scanlines ---- */
  
   .screen-bezel {
-    background: var(--display-bg);
+    background: var(--color-display-bg);
     position: relative;
     flex: 1;
     min-height: 0;
@@ -138,17 +138,17 @@ These are styles that are not in tailwindcss */
   /* ---- screen text ---- */
  
   .term {
-    color: var(--display-green);
-    text-shadow: 0 0 2px var(--display-green), 0 0 10px rgb(74 255 138 / 0.35);
+    color: var(--color-display-green);
+    text-shadow: 0 0 2px var(--color-display-green), 0 0 10px rgb(74 255 138 / 0.35);
     font-family: var(--font-mono);
     white-space: pre-wrap;
   }
  
   .cursor::after {
     content: '█';
-    color: var(--display-green);
+    color: var(--color-display-green);
     animation: blink 1s steps(1) infinite;
-    text-shadow: 0 0 6px var(--display-green);
+    text-shadow: 0 0 6px var(--color-display-green);
   }
  
   /* ---- Result layer: image + bounding boxes ---- */
@@ -171,7 +171,7 @@ These are styles that are not in tailwindcss */
  
   .box {
     position: absolute;
-    border: 2px solid var(--display-green);
+    border: 2px solid var(--color-display-green);
     box-shadow: 0 0 8px rgb(74 255 138 / 0.5);
     border-radius: 3px;
     opacity: 0;
@@ -182,7 +182,7 @@ These are styles that are not in tailwindcss */
     position: absolute;
     top: -18px;
     left: -2px;
-    background: var(--display-green);
+    background: var(--color-display-green);
     color: #03130a;
     font: 600 10px var(--font-mono);
     padding: 1px 5px;
@@ -195,7 +195,7 @@ These are styles that are not in tailwindcss */
     bottom: 10px;
     left: 14px;
     font: 500 10px var(--font-mono);
-    color: var(--display-green);
+    color: var(--color-display-green);
     text-shadow: 0 0 4px rgb(74 255 138 / 0.5);
     z-index: 11;
   }
@@ -204,7 +204,7 @@ These are styles that are not in tailwindcss */
  
   .toast-track {
     font: 500 9px var(--font-mono);
-    color: var(--display-green);
+    color: var(--color-display-green);
     text-shadow: 0 0 4px rgb(74 255 138 / 0.4);
     white-space: nowrap;
     letter-spacing: 0.02em;
@@ -213,7 +213,7 @@ These are styles that are not in tailwindcss */
   .toast-track.scrolling {
     position: absolute;
     left: 0;
-    animation: toastMarquee 15s linear 5; /* five passes */
+    animation: toastMarquee 3.2s linear 5; /* five passes, then it clears itself */
   }
  
   .toast-track.static {

@@ -1,14 +1,12 @@
 import { useState } from 'react'
+import './index.css'
+import TopBar from './components/TopBar'
 
-// Plain tab switch for now (no router dependency yet) — swap for
-// react-router if/when the app needs real URLs per page.
 function App() {
-  const [page, setPage] = useState('detection')
-
   return (
-    <>
-      
-    </>
+    <div className="silver-body min-h-screen w-full flex flex-col items-center justify-center p-6 select-none">
+      <TopBar />
+    </div>
   )
 }
 
