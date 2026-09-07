@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import './index.css'
-import TopBar from './components/TopBar'
+import TopBar from './components/chassis/TopBar'
 import { LuLayoutDashboard } from "react-icons/lu";
-import NavButton from './components/NavButton'
+import NavButton from './components/chassis/NavButton'
 
 function App() {
   return (
