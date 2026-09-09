@@ -3,7 +3,6 @@ import StatScreen from './StatScreen';
 import DirectionsPanel from './DirectionsPanel';
 import StatePanel from './StatePanel';
 import ToastScreen from './ToastScreen';
-import PowerButton from '../../chassis/PowerButton';
 import { formatConfidence, formatTime, padCount } from '../../../utils/format';
 
 function StatsScreens() {
@@ -21,9 +20,6 @@ function StatsScreens() {
       <DirectionsPanel />
       <StatePanel />
       <ToastScreen />
-      <div className="flex justify-center pt-2">
-        <PowerButton />
-      </div>
     </div>
   );
 }
