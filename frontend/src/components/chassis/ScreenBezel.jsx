@@ -1,5 +1,6 @@
 import TerminalText from '../display/main/TerminalText';
 import ResultView from '../display/main/ResultView';
+import PowerOffDialog from './PowerOffDialog';
 import { MODES, useNavigationStore } from '../../stores/NavigationStore';
 import { usePowerStore } from '../../stores/PowerStore';
 import { useScreenTransition } from '../../hooks/useScreenTransition';
@@ -26,7 +27,7 @@ function ScreenBezel() {
   return (
     <div className="screen-frame">
       <div
-        className={`screen-bezel glass-shine crt-flicker ${flicker ? 'flicker-burst' : ''} ${powerClass}`}
+        className={`screen-bezel flex flex-col items-center justify-center glass-shine crt-flicker ${flicker ? 'flicker-burst' : ''} ${powerClass}`}
         onAnimationEnd={(e) => {
           if (e.animationName === 'flickerBurst') onFlickerEnd();
         }}
@@ -40,6 +41,7 @@ function ScreenBezel() {
             )}
           </>
         )}
+        <PowerOffDialog />
         <div className="scanlines" />
         <div className="crt-vignette" />
         <div className="crt-glass-reflection" />

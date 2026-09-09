@@ -2,37 +2,27 @@ import { usePowerStore } from '../../stores/PowerStore';
 
 export default function PowerOffDialog() {
   const showPowerOffDialog = usePowerStore((s) => s.showPowerOffDialog);
-  const startShutdown = usePowerStore((s) => s.startShutdown);
-  const cancelPowerOff = usePowerStore((s) => s.cancelPowerOff);
 
   if (!showPowerOffDialog) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs">
-      <div className="bg-[#101113] border border-display-green/30 rounded-xl p-6 max-w-sm w-full shadow-[0_0_30px_rgba(74,255,138,0.2)] text-center font-mono">
-        <h3 className="text-display-green text-sm font-semibold tracking-wider mb-2 uppercase">
-          SHUTDOWN CONSOLE?
-        </h3>
-        <p className="text-chassis-muted text-xs mb-6">
+    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#030402]/95 p-4 font-mono text-display-green pointer-events-none select-none">
+      <div className="border border-display-green/40 bg-[#101113]/90 rounded-lg p-5 max-w-xs w-full text-center shadow-[0_0_20px_rgba(74,255,138,0.15)]">
+        <div className="text-xs font-bold tracking-wider mb-2 text-display-green uppercase">
+          ▸ SHUTDOWN CONSOLE?
+        </div>
+        <div className="text-[10px] text-chassis-muted mb-4 border-b border-white/10 pb-2">
           System services will be powered down.
-        </p>
-        <div className="flex gap-4 justify-center">
-          <button
-            type="button"
-            onClick={startShutdown}
-            className="px-4 py-2 bg-display-green/20 hover:bg-display-green/30 text-display-green border border-display-green/50 rounded text-xs font-bold transition-colors cursor-pointer"
-          >
-            [Y] YES
-          </button>
-          <button
-            type="button"
-            onClick={cancelPowerOff}
-            className="px-4 py-2 bg-white/5 hover:bg-white/10 text-chassis-muted border border-white/20 rounded text-xs font-bold transition-colors cursor-pointer"
-          >
-            [N] NO
-          </button>
+        </div>
+        <div className="text-xs font-semibold text-display-green space-x-4 mb-2">
+          <span className="px-2 py-1 bg-display-green/20 border border-display-green/40 rounded">[Y] YES</span>
+          <span className="px-2 py-1 bg-white/5 border border-white/20 rounded text-chassis-muted">[N] NO</span>
+        </div>
+        <div className="text-[9px] text-chassis-dim mt-3">
+          Press [Y] or ENTER to shutdown<br />Press [N] or ESC to cancel
         </div>
       </div>
     </div>
   );
 }
+

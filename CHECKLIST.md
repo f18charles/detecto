@@ -59,12 +59,12 @@
 
 ## ⚡ Phase 2: API Integration & Data Cleanup (`api-integration` branch)
 
-- [ ] **Create Branch `api-integration`**: `git checkout -b api-integration` off `styling-and-structure`.
-- [ ] **Remove Mock Data**: Remove `MOCK_HISTORY_ROWS` and hardcoded `SAMPLE_IMAGES` from `useDataQueries.js` / mock data files.
-- [ ] **Backend History Integration**: Connect history UI and `TerminalText` to `useHistory` TanStack Query hook fetching from `/history`.
-- [ ] **Offline / Graceful Waiting State**: Display genuine `"AWAITING BACKEND..."` or 0-record status when backend is unreachable (no mock fallback).
-- [ ] **Preserve Local Sample Detection**: Keep local detection sample images available for offline demo detection.
-- [ ] **Backend Detection Integration**: Ensure upload mutation connects to `/detect` endpoint with error toast and fallback on failure.
+- [x] **Create Branch `api-integration`**: `git checkout -b api-integration` off `styling-and-structure`.
+- [x] **Remove Mock Data**: Removed `MOCK_HISTORY_ROWS` from `mockData.js`.
+- [x] **Backend History Integration**: Connected history UI, `TerminalText`, and `useKeyboardNav` to `useHistory` TanStack Query hook fetching from `/history`.
+- [x] **Offline / Graceful Waiting State**: Display genuine `"AWAITING BACKEND CONNECTION..."` or 0-record status when backend is unreachable (no mock fallback).
+- [x] **Preserve Local Sample Detection**: Kept local detection sample images available for offline demo detection.
+- [x] **Backend Detection Integration**: Ensured upload mutation connects to `/detect` endpoint with error toast and fallback on failure.
 
 ---
 

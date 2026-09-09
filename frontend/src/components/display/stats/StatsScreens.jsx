@@ -13,7 +13,7 @@ function StatsScreens() {
   const time = formatTime(currentResult?.inferenceTimeMs);
 
   return (
-    <div className="flex flex-col gap-2.5 self-start">
+    <div className="flex flex-col gap-2.5 self-start w-full">
       <StatScreen label="People" value={people} />
       <StatScreen label="Avg Conf" value={conf} muted />
       <StatScreen label="Processing" value={time} muted />

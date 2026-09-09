@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 export const usePowerStore = create((set, get) => ({
-  isPowerOn: true,
+  isPowerOn: false,
   isBooting: false,
   isShuttingDown: false,
   showPowerOffDialog: false,

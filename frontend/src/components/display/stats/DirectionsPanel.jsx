@@ -18,15 +18,17 @@ function DirectionsPanel() {
 
   return (
     <div className="mini-frame">
-      <div className={`inset-panel glass-shine rounded-xl px-3 py-2.5 ${powerClass}`}>
-        <div className="text-[8px] font-mono text-chassis-dim tracking-wide uppercase mb-1.5">
-          Directions
+      <div className={`inset-panel glass-shine rounded-xl px-3 py-2.5 h-[105px] flex flex-col justify-between ${powerClass}`}>
+        <div>
+          <div className="text-[8px] font-mono text-chassis-dim tracking-wide uppercase mb-1">
+            Directions
+          </div>
+          <div className="text-[9px] font-mono text-[#a8b0b8] leading-relaxed min-h-[38px]">
+            {isPowerOn && !isShuttingDown ? help : ''}
+          </div>
         </div>
-        <div className="text-[9px] font-mono text-[#a8b0b8] leading-relaxed">
-          {isPowerOn ? help : 'SYSTEM OFFLINE'}
-        </div>
-        <div className="text-[10px] font-mono text-display-green mt-1.5 pt-1.5 border-t border-white/5">
-          ⏱ {time}
+        <div className="text-[10px] font-mono text-display-green pt-1 border-t border-white/5 min-h-[20px]">
+          {isPowerOn && !isShuttingDown ? `⏱ ${time}` : ''}
         </div>
       </div>
     </div>

@@ -14,19 +14,20 @@ export default function PowerButton() {
   };
 
   return (
-    <div className="flex items-center gap-2 bg-gradient-to-r from-[#2f3136] via-[#52555c] to-[#303236] px-3 py-1.5 rounded-full shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),inset_0_-1px_2px_rgba(0,0,0,0.4),0_3px_8px_rgba(0,0,0,0.5)]">
+    <div className="flex items-center justify-center p-1.5 bg-gradient-to-r from-[#2f3136] via-[#52555c] to-[#303236] rounded-full shadow-[inset_0_1px_1px_rgba(255,255,255,0.35),inset_0_-1px_2px_rgba(0,0,0,0.45),0_4px_12px_rgba(0,0,0,0.6)]">
       <button
         type="button"
+        tabIndex={-1}
         onClick={handleClick}
-        className={`silver-btn rounded-full w-8 h-8 flex items-center justify-center cursor-pointer pointer-events-auto transition-all ${
+        className={`silver-btn rounded-full w-12 h-12 flex items-center justify-center cursor-pointer pointer-events-auto transition-all ${
           isPowerOn ? 'silver-btn-active' : ''
         }`}
         title={isPowerOn ? 'Power Off Console' : 'Power On Console'}
       >
         <svg
-          className={`w-4 h-4 ${
+          className={`w-6 h-6 ${
             isPowerOn
-              ? 'text-display-green drop-shadow-[0_0_6px_#3DDC97]'
+              ? 'text-display-green drop-shadow-[0_0_8px_#3DDC97]'
               : 'text-[#3f4247]'
           }`}
           fill="none"
@@ -41,9 +42,6 @@ export default function PowerButton() {
           />
         </svg>
       </button>
-      <span className="text-[9px] font-mono font-semibold tracking-wider text-chassis-text select-none">
-        {isPowerOn ? 'POWER ON' : 'POWER OFF'}
-      </span>
     </div>
   );
 }
