@@ -49,6 +49,12 @@ export const useNavigationStore = create((set, get) => ({
         set({ results })
     },
 
+    // Select Page directly via Nav buttons
+    selectPage: (targetPage) => {
+        if (targetPage < 0 || targetPage > 1) return;
+        set({ mode: MODES.NAV, page: targetPage, currPage: targetPage, selectedItem: 0, results: null });
+    },
+
     popUp: () => {
         const {mode} = get()
         if (mode === MODES.RESULT) {

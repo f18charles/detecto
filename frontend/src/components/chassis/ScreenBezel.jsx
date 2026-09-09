@@ -26,7 +26,7 @@ function ScreenBezel() {
   return (
     <div className="screen-frame">
       <div
-        className={`screen-bezel glass-shine crt-flicker ${flicker ? 'flicker-burst' : ''} ${powerClass}`}
+        className={`screen-bezel flex flex-col items-center justify-center glass-shine crt-flicker ${flicker ? 'flicker-burst' : ''} ${powerClass}`}
         onAnimationEnd={(e) => {
           if (e.animationName === 'flickerBurst') onFlickerEnd();
         }}

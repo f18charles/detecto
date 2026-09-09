@@ -78,7 +78,11 @@ function TerminalText({ mode, page, results }) {
     text = IDLE_TEXT[page];
   }
 
-  return <pre className="term cursor">{text}</pre>;
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center w-full h-full my-auto mx-auto z-10 pointer-events-none select-none">
+      <pre className="term cursor text-left">{text}</pre>
+    </div>
+  );
 }
 
 export default TerminalText;
