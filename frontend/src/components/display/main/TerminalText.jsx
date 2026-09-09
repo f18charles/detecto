@@ -1,5 +1,5 @@
 import { MODES, useNavigationStore } from '../../../stores/NavigationStore';
-import { SAMPLE_IMAGES, MOCK_HISTORY_ROWS } from '../../../data/mockData'
+import { SAMPLE_IMAGES } from '../../../data/mockData';
 import { formatConfidence } from '../../../utils/format';
 
 const IDLE_TEXT = [
@@ -11,7 +11,7 @@ STATUS     : idle
 [ Press ENTER to choose an input ]`,
   `> HISTORY.LOG
 ------------------------------------
-${MOCK_HISTORY_ROWS.length} records logged
+AWAITING BACKEND CONNECTION...
 
 [ Press ENTER to browse ]`,
 ];
@@ -27,22 +27,21 @@ function buildListText(page, selectedItem) {
     return lines;
   }
 
-  let lines = '> HISTORY.LOG — select a record\n' + '-'.repeat(48) + '\n';
-  MOCK_HISTORY_ROWS.forEach((row, i) => {
-    const marker = i === selectedItem ? '▸ ' : '  ';
-    lines += `${marker}${row.timestamp}  ${row.count} people  ${formatConfidence(row.avgConfidence)}\n`;
-  });
-  lines += '-'.repeat(48) + '\n↑/↓ select · ENTER confirm · ESC back';
-  return lines;
+  // History list placeholder — wired to backend in api-integration branch
+  return `> HISTORY.LOG — awaiting backend
+${'—'.repeat(24)}
+No records available yet.
+${'—'.repeat(24)}
+ESC  back to nav`;
 }
 
 function buildHistoryDetailText(row) {
   return `> HISTORY.LOG — record detail
 ------------------------------------
-TIMESTAMP  : ${row.timestamp}
-COUNT      : ${row.count}
+TIMESTAMP  : ${row.timestamp ?? '—'}
+COUNT      : ${row.count ?? '—'}
 CONFIDENCE : ${formatConfidence(row.avgConfidence)}
-SOURCE     : ${row.sourceType}
+SOURCE     : ${row.sourceType ?? '—'}
 ------------------------------------
 ESC  back to list`;
 }
