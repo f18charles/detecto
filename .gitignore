@@ -1,7 +1,4 @@
 .claude/
-.vscode/
-.idea/
-.DS_Store
 
 # Python / backend
 __pycache__/
@@ -9,12 +6,6 @@ __pycache__/
 .venv/
 backend/detections.db
 backend/.env
-*.env
-*.env.*
 
-# Node / frontend
+# Node / frontend (frontend/ also has its own .gitignore)
 node_modules/
-frontend/node_modules/
-frontend/dist/
-frontend/dist-ssr/
-
