@@ -1,15 +1,10 @@
-import { useState } from 'react'
+import './index.css'  
+import { useKeyboardNav } from './hooks/useKeyboardNav'
+import ConsoleShell from './components/chassis/ConsoleShell';
 
-// Plain tab switch for now (no router dependency yet) — swap for
-// react-router if/when the app needs real URLs per page.
 function App() {
-  const [page, setPage] = useState('detection')
-
-  return (
-    <>
-      
-    </>
-  )
+  useKeyboardNav()
+  return <ConsoleShell />
 }
 
 export default App
