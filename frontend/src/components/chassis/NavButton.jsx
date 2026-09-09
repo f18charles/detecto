@@ -3,7 +3,7 @@ function NavButton({ icon: Icon, active = false, label, onClick }) {
         <div className="relative flex items-center">
             <button 
                 type="button" 
-                tabIndex={0} 
+                tabIndex={-1} 
                 aria-label={label} 
                 aria-pressed={active} 
                 onClick={onClick}

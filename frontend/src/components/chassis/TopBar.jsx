@@ -6,19 +6,19 @@ const TopBar = () => {
   const isShuttingDown = usePowerStore((s) => s.isShuttingDown);
   const historyQuery = useHistory();
 
-  // Determine 2-light state:
-  // Off state (system powered off) -> gray/black
-  // On state + backend error -> red
-  // On state + backend ok -> green
+  // Status Light color scheme:
+  // Off state (system powered off or shutting down) -> no color / off gray / black
+  // Connected state (powered on + backend connected) -> green
+  // Not connected state (powered on + backend error) -> red
   const isSystemActive = isPowerOn && !isShuttingDown;
   const isBackendConnected = !historyQuery.isError;
 
-  let lightStyle = 'bg-black/60 border border-white/10 shadow-none'; // off state (gray/black)
+  let lightStyle = 'bg-[#18191b] border border-white/15 shadow-none'; // off state (no color / off gray / black)
   if (isSystemActive) {
     if (isBackendConnected) {
       lightStyle = 'bg-display-green shadow-[0_0_8px_#3ddc97]'; // connected green
     } else {
-      lightStyle = 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.7)]'; // error red
+      lightStyle = 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.7)]'; // not connected red
     }
   }
 
@@ -32,11 +32,8 @@ const TopBar = () => {
           <p className="text-[10px] font-mono text-chassis-muted mt-1">Station 01-072-073</p>
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1.5">
-          <span className={`w-2 h-2 rounded-full transition-all duration-300 ${lightStyle}`} />
-          <span className={`w-2 h-2 rounded-full transition-all duration-300 ${lightStyle}`} />
-        </div>
+      <div className="flex items-center gap-2.5">
+        <span className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${lightStyle}`} />
         <span className="text-[10px] font-mono text-chassis-muted select-none">
           System Online
         </span>

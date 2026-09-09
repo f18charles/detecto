@@ -21,7 +21,7 @@ function StatsScreens() {
       <DirectionsPanel />
       <StatePanel />
       <ToastScreen />
-      <div className="flex justify-end pt-1">
+      <div className="flex justify-center pt-2">
         <PowerButton />
       </div>
     </div>
