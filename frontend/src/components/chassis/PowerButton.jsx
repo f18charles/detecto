@@ -42,7 +42,7 @@ export default function PowerButton() {
         </svg>
       </button>
       <span className="text-[9px] font-mono font-semibold tracking-wider text-chassis-text select-none">
-        {isPowerOn ? 'POWER ON' : 'POWER OFF'}
+        POWER
       </span>
     </div>
   );

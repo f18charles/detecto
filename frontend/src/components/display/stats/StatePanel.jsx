@@ -20,10 +20,12 @@ function StatePanel() {
     <div className="mini-frame">
       <div className={`inset-panel glass-shine rounded-xl px-3 py-2.5 ${powerClass}`}>
         <div className="text-[11px] font-mono text-display-green font-semibold tracking-wide mb-1.5">
-          ▸ {isPowerOn ? `${MODE_NAMES[mode]} MODE` : 'OFFLINE'}
+          {isPowerOn && !isShuttingDown ? `▸ ${MODE_NAMES[mode]} MODE` : ''}
         </div>
         <div className="text-[10px] font-mono text-chassis-dim pt-1.5 border-t border-white/5">
-          CURRENT: <span className="text-display-green">{isPowerOn ? PAGE_NAMES[currPage] : '—'}</span>
+          {isPowerOn && !isShuttingDown ? (
+            <>CURRENT: <span className="text-display-green">{PAGE_NAMES[currPage]}</span></>
+          ) : ''}
         </div>
       </div>
     </div>

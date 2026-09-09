@@ -2,7 +2,6 @@ import TopBar from './TopBar';
 import NavSection from './NavSection';
 import ScreenBezel from './ScreenBezel';
 import StatsScreens from '../display/stats/StatsScreens';
-import PowerOffDialog from './PowerOffDialog';
 
 function ConsoleShell() {
   return (
@@ -15,7 +14,6 @@ function ConsoleShell() {
         </div>
         <StatsScreens />
       </div>
-      <PowerOffDialog />
     </div>
   );
 }

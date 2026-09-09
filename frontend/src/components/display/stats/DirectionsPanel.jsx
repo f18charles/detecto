@@ -23,10 +23,10 @@ function DirectionsPanel() {
           Directions
         </div>
         <div className="text-[9px] font-mono text-[#a8b0b8] leading-relaxed">
-          {isPowerOn ? help : 'SYSTEM OFFLINE'}
+          {isPowerOn && !isShuttingDown ? help : ''}
         </div>
         <div className="text-[10px] font-mono text-display-green mt-1.5 pt-1.5 border-t border-white/5">
-          ⏱ {time}
+          {isPowerOn && !isShuttingDown ? `⏱ ${time}` : ''}
         </div>
       </div>
     </div>

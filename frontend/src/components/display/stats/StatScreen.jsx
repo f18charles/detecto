@@ -15,7 +15,7 @@ const StatScreen = ({ label, value, muted = false }) => {
       <div className={`inset-panel glass-shine rounded-xl px-3.5 py-2.5 ${powerClass}`}>
         <div className="text-[9px] font-mono text-chassis-dim tracking-wide mb-1">{label}</div>
         <div className={`font-mono font-semibold text-xl ${muted ? 'text-[#c8cace]' : 'text-display-green'}`}>
-          {isPowerOn ? value : '—'}
+          {isPowerOn && !isShuttingDown ? value : ''}
         </div>
       </div>
     </div>

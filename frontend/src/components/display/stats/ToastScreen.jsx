@@ -70,7 +70,7 @@ function ToastScreen() {
     <div className="mini-frame">
       <div className={`inset-panel glass-shine rounded-lg h-[26px] px-2.5 flex items-center overflow-hidden relative ${powerClass}`}>
         <div ref={trackRef} key={toastKey} className="toast-track">
-          {isPowerOn ? message : ''}
+          {isPowerOn && !isShuttingDown ? message : ''}
         </div>
       </div>
     </div>
