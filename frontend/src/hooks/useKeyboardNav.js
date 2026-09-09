@@ -1,20 +1,26 @@
 import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { MODES, useNavigationStore } from '../stores/NavigationStore';
 import { usePowerStore } from '../stores/PowerStore';
 import { useDetection } from './UseDetection';
 import { useFileUpload } from './useFileUpload';
 import { SAMPLE_IMAGES } from '../data/mockData';
+import { historyQueryKey } from './UseHistory';
 
 const UPLOAD_INDEX = SAMPLE_IMAGES.length;
 
-function getListLength(page) {
-  // Detect page: samples + upload row. History page length comes from props/store later.
-  return page === 0 ? SAMPLE_IMAGES.length + 1 : 0;
-}
-
 export function useKeyboardNav() {
+  const queryClient = useQueryClient();
   const { openFilePicker } = useFileUpload({ accept: 'image/*' });
   const { mutate } = useDetection();
+
+  const historyData = queryClient.getQueryData(historyQueryKey);
+
+  function getListLength(page) {
+    if (page === 0) return SAMPLE_IMAGES.length + 1;
+    if (page === 1) return Array.isArray(historyData) ? historyData.length : 0;
+    return 0;
+  }
 
   useEffect(() => {
     function startUpload() {
@@ -70,8 +76,12 @@ export function useKeyboardNav() {
         } else {
           store.enterResult({ type: 'sample', data: SAMPLE_IMAGES[selectedItem] });
         }
+      } else if (page === 1) {
+        const historyRows = queryClient.getQueryData(historyQueryKey);
+        if (Array.isArray(historyRows) && historyRows[selectedItem]) {
+          store.enterResult({ type: 'history', data: historyRows[selectedItem] });
+        }
       }
-      // History confirm will be wired in api-integration branch
     }
 
     function handleKeyDown(e) {
