@@ -119,6 +119,25 @@ These are styles that are not in tailwindcss */
       linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.04) 48%, transparent 62%),
       radial-gradient(120% 90% at 100% 0%, rgb(255 255 255 / 0.05), transparent 55%);
   }
+
+  .crt-vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, transparent 60%, rgba(0,0,0,0.65) 100%);
+    pointer-events: none;
+    z-index: 22;
+  }
+
+  .crt-glass-reflection {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 45%;
+    background: linear-gradient(170deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 40%, transparent 100%);
+    pointer-events: none;
+    z-index: 21;
+  }
  
   .scanlines {
     position: absolute;
@@ -134,6 +153,11 @@ These are styles that are not in tailwindcss */
  
   .crt-flicker { animation: flicker 6s infinite; }
   .flicker-burst { animation: flickerBurst 220ms ease-out; }
+  .glitch-effect { animation: crtGlitch 280ms ease-out forwards; }
+  .crt-power-on { animation: crtPowerOnFade 1000ms ease-out forwards; }
+  .crt-power-off-dot { animation: crtPowerOffCenterDot 800ms ease-in-out forwards; }
+  .mini-crt-power-on { animation: crtMiniPowerOn 750ms ease-out forwards; }
+  .mini-crt-power-off { animation: crtMiniPowerOffDot 650ms ease-in-out forwards; }
  
   /* ---- screen text ---- */
  
@@ -238,6 +262,42 @@ These are styles that are not in tailwindcss */
   46% { opacity: 1; }
   64% { opacity: 0.93; }
   100% { opacity: 1; }
+}
+
+@keyframes crtGlitch {
+  0% { transform: translateY(0); text-shadow: 0 0 2px var(--color-display-green); }
+  20% { transform: translateY(-2px); text-shadow: -2px 0 #3DDC97, 2px 0 #E5484D; }
+  40% { transform: translateY(1px); text-shadow: 2px 0 #3DDC97, -2px 0 #5B8CFF; }
+  60% { transform: translateY(-1px); }
+  80% { transform: translateY(1px); text-shadow: -1px 0 #3DDC97; }
+  100% { transform: translateY(0); text-shadow: 0 0 2px var(--color-display-green); }
+}
+
+@keyframes crtPowerOnFade {
+  0% { opacity: 0; filter: brightness(0); transform: scale(0.98); }
+  30% { opacity: 0.9; filter: brightness(2.2) contrast(1.4); transform: scale(1.01); }
+  65% { opacity: 0.7; filter: brightness(0.8); transform: scale(1); }
+  100% { opacity: 1; filter: brightness(1); transform: scale(1); }
+}
+
+@keyframes crtPowerOffCenterDot {
+  0% { transform: scale(1, 1); opacity: 1; filter: brightness(1); }
+  35% { transform: scale(1, 0.005); opacity: 1; filter: brightness(3); background: #ffffff; }
+  70% { transform: scale(0.008, 0.008); opacity: 1; filter: brightness(4); background: #ffffff; box-shadow: 0 0 30px 10px #ffffff; }
+  100% { transform: scale(0.001, 0.001); opacity: 0; filter: brightness(0); box-shadow: none; }
+}
+
+@keyframes crtMiniPowerOn {
+  0% { opacity: 0; filter: brightness(0); }
+  40% { opacity: 0.85; filter: brightness(1.5); }
+  100% { opacity: 1; filter: brightness(1); }
+}
+
+@keyframes crtMiniPowerOffDot {
+  0% { transform: scale(1, 1); opacity: 1; filter: brightness(1); }
+  35% { transform: scale(1, 0.008); opacity: 1; filter: brightness(1.8); background: #4aff8a; }
+  70% { transform: scale(0.01, 0.01); opacity: 0.95; filter: brightness(2); background: #4aff8a; box-shadow: 0 0 14px 4px #4aff8a; }
+  100% { transform: scale(0.001, 0.001); opacity: 0; filter: brightness(0); box-shadow: none; }
 }
  
 @keyframes blink {

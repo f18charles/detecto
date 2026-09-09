@@ -43,6 +43,12 @@ export const useNavigationStore = create((set, get) => ({
         set({ mode: MODES.RESULT, results })
     },
 
+    // Update result data in-place (e.g. when upload detection resolves)
+    updateResult: (results) => {
+        if (get().mode !== MODES.RESULT) return
+        set({ results })
+    },
+
     popUp: () => {
         const {mode} = get()
         if (mode === MODES.RESULT) {

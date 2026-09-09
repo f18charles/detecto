@@ -1,25 +1,17 @@
 import { useEffect } from 'react';
 import { MODES, useNavigationStore } from '../stores/NavigationStore';
+import { usePowerStore } from '../stores/PowerStore';
 import { useDetection } from './UseDetection';
 import { useFileUpload } from './useFileUpload';
-import { SAMPLE_IMAGES, MOCK_HISTORY_ROWS } from '../data/mockData';
+import { SAMPLE_IMAGES } from '../data/mockData';
 
-const UPLOAD_INDEX = SAMPLE_IMAGES.length; // the "+ upload your own image..." row
+const UPLOAD_INDEX = SAMPLE_IMAGES.length;
 
 function getListLength(page) {
-  return page === 0 ? SAMPLE_IMAGES.length + 1 : MOCK_HISTORY_ROWS.length;
+  // Detect page: samples + upload row. History page length comes from props/store later.
+  return page === 0 ? SAMPLE_IMAGES.length + 1 : 0;
 }
 
-// The one keydown listener for the whole console. NavigationStore stays
-// agnostic to what's actually in a list (see its own notes) — this is the
-// layer that resolves "selectedItem 2 on the Detect page" into an actual
-// sample/upload/history item, since it's the thing that has both the
-// store and the mock data in scope.
-//
-// Reads store state via getState() rather than the reactive hook — this
-// component renders nothing, it just holds a listener, so subscribing
-// reactively would tear down and rebuild that listener on every
-// navigation keystroke for no reason.
 export function useKeyboardNav() {
   const { openFilePicker } = useFileUpload({ accept: 'image/*' });
   const { mutate } = useDetection();
@@ -30,9 +22,6 @@ export function useKeyboardNav() {
 
       openFilePicker({
         onFile: (file, objectUrl) => {
-          // Show the real photo immediately — boxes/stats arrive once
-          // /detect resolves. Staying in 'upload' type, not jumping to a
-          // resolved shape yet, since detections is still absent.
           useNavigationStore.getState().updateResult({
             type: 'upload',
             data: {
@@ -63,10 +52,6 @@ export function useKeyboardNav() {
               });
             },
             onError: () => {
-              // Nothing meaningful left to show on the result screen —
-              // back out to the list. ToastScreen already surfaces the
-              // failure via detectionStore's status, so this doesn't
-              // need its own error message.
               useNavigationStore.getState().popUp();
             },
           });
@@ -85,12 +70,28 @@ export function useKeyboardNav() {
         } else {
           store.enterResult({ type: 'sample', data: SAMPLE_IMAGES[selectedItem] });
         }
-      } else {
-        store.enterResult({ type: 'history', data: MOCK_HISTORY_ROWS[selectedItem] });
       }
+      // History confirm will be wired in api-integration branch
     }
 
     function handleKeyDown(e) {
+      const power = usePowerStore.getState();
+
+      // Power-off dialog shortcuts
+      if (power.showPowerOffDialog) {
+        if (e.key === 'Enter' || e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          power.startShutdown();
+        } else if (e.key === 'Escape' || e.key.toLowerCase() === 'n') {
+          e.preventDefault();
+          power.cancelPowerOff();
+        }
+        return;
+      }
+
+      // Block all nav when powered off, booting, or shutting down
+      if (!power.isPowerOn || power.isBooting || power.isShuttingDown) return;
+
       const isUp = e.key === 'ArrowUp' || e.key === 'ArrowLeft';
       const isDown = e.key === 'ArrowDown' || e.key === 'ArrowRight';
       const isConfirm = e.key === 'Enter' || e.key === ' ';
@@ -117,8 +118,6 @@ export function useKeyboardNav() {
       }
 
       if (mode === MODES.RESULT) {
-        // Arrows/confirm intentionally do nothing here — only ESC works,
-        // matching HELP_TEXT for RESULT mode.
         if (isBack) store.popUp();
         return;
       }
@@ -126,6 +125,5 @@ export function useKeyboardNav() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openFilePicker, mutate]);
 }
