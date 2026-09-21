@@ -1,0 +1,64 @@
+{
+  "_comment": "Hand-counted by eye. count = clearly visible people. count=null marks a stress image (crowd too dense to count exactly); it is excluded from accuracy/false-positive maths but still counts toward reliability, timing and confidence.",
+  "images": {
+    "boda_boda_pair.jpg": {
+      "count": 2
+    },
+    "crowd_essence.jpg": {
+      "count": null
+    },
+    "crowd_festival_cc0.jpg": {
+      "count": null
+    },
+    "empty_street.jpg": {
+      "count": 0,
+      "note": "night, snow, parked cars; no people"
+    },
+    "indoor_cafe.jpg": {
+      "count": 5,
+      "note": "a sixth person is only a sliver at the far right edge; not counted"
+    },
+    "lowlight_nieuwmarkt.jpg": {
+      "count": null
+    },
+    "occlusion_greenwich.jpg": {
+      "count": null
+    },
+    "occlusion_pride.jpg": {
+      "count": null
+    },
+    "pair_men_cold.jpg": {
+      "count": 2
+    },
+    "pair_men_wiknic.jpg": {
+      "count": 2,
+      "note": "an arm and backpack of a third person at the right edge; not counted"
+    },
+    "pair_students_campus.jpg": {
+      "count": 2,
+      "note": "a tiny worker far in the background; not counted"
+    },
+    "single_cyclist_amsterdam.jpg": {
+      "count": 1
+    },
+    "single_cyclist_unsplash.jpg": {
+      "count": 1
+    },
+    "small_group_columbia.jpg": {
+      "count": 3,
+      "note": "a few tiny people far in the background; not counted"
+    },
+    "sports_lineup.jpg": {
+      "count": null
+    },
+    "street_crossing_kibiwott.jpg": {
+      "count": null
+    },
+    "street_shibuya.jpg": {
+      "count": null
+    },
+    "trio_students_tulane.jpg": {
+      "count": 3
+    }
+  }
+}
