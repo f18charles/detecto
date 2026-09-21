@@ -5,17 +5,30 @@ const api = axios.create({
     timeout: 50000
 })
 
-// detect → accepts an image file (JPEG, PNG) via multipart/form-data or base64, runs inference, returns:
-// JSON with count, coordinates, and confidence per person.
-// Processed image (base64 or file path).
-export const detect = async (formData) => {
+// Name of the multipart field the backend's /detect endpoint reads the image from.
+// This must match the parameter name in the FastAPI route, e.g.
+//   async def detect(file: UploadFile = File(...))   ->  'file'
+// A mismatch is what produces "422 Unprocessable Entity" (field required).
+export const DETECT_FILE_FIELD = 'file'
+
+const logError = (message, error) => {
+    // FastAPI puts the reason for a 422 in response.data.detail — log it so the
+    // exact missing/invalid field is visible in the console.
+    console.error(message, error.response?.status ?? '', error.response?.data ?? error.message)
+}
+
+// detect → uploads an image file (JPEG, PNG) via multipart/form-data and returns:
+// { count, boxes: [{x, y, width, height, confidence}], average_confidence, inference_time_ms, processed_image }
+// Box coordinates are in pixels of the original image.
+export const detect = async (file) => {
+    const formData = new FormData()
+    formData.append(DETECT_FILE_FIELD, file)
     try {
-        const response = await api.post('/detect', formData, {
-            headers: {"Content-Type": "multipart/form-data"}
-        })
+        // No manual Content-Type: the browser must set it so the multipart boundary is included.
+        const response = await api.post('/detect', formData)
         return response.data
     } catch (error) {
-        console.error("Image upload failed", error.message)
+        logError("Image upload failed", error)
         throw error
     }
 }
@@ -26,7 +39,7 @@ export const history = async (params) => {
         const response = await api.get('/history', { params })
         return response.data
     } catch (error) {
-        console.error("Failed to retrieve the history")
+        logError("Failed to retrieve the history", error)
         throw error
     }
 }
@@ -37,7 +50,7 @@ export const reset = async () => {
         const response = await api.post('/reset')
         return response.data
     } catch (error) {
-        console.error("Failed to clear history")
+        logError("Failed to clear history", error)
         throw error
     }
 }

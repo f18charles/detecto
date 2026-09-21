@@ -2,36 +2,61 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { MODES, useNavigationStore } from '../stores/NavigationStore';
 import { usePowerStore } from '../stores/PowerStore';
+import { useDetectionStore } from '../stores/DetectionStore';
 import { useDetection } from './UseDetection';
 import { useFileUpload } from './useFileUpload';
-import { SAMPLE_IMAGES } from '../data/mockData';
 import { historyQueryKey } from './UseHistory';
+import { getImageSize } from '../utils/image';
+import { normalizeDetection } from '../utils/detection';
 
-const UPLOAD_INDEX = SAMPLE_IMAGES.length;
+// Detect page has a single entry: upload an image.
+const DETECT_LIST_LENGTH = 1;
 
 export function useKeyboardNav() {
   const queryClient = useQueryClient();
   const { openFilePicker } = useFileUpload({ accept: 'image/*' });
   const { mutate } = useDetection();
 
-  const historyData = queryClient.getQueryData(historyQueryKey);
-
-  function getListLength(page) {
-    if (page === 0) return SAMPLE_IMAGES.length + 1;
-    if (page === 1) return Array.isArray(historyData) ? historyData.length : 0;
-    return 0;
-  }
-
   useEffect(() => {
+    // Read history at call time — the effect only re-runs when its deps change,
+    // so a value captured during render would be stale.
+    function getListLength(page) {
+      if (page === 0) return DETECT_LIST_LENGTH;
+      if (page === 1) {
+        const rows = queryClient.getQueryData(historyQueryKey);
+        return Array.isArray(rows) ? rows.length : 0;
+      }
+      return 0;
+    }
+
+    function failDetection() {
+      useDetectionStore.getState().setStatus('error');
+      useNavigationStore.getState().popUp();
+    }
+
     function startUpload() {
       useNavigationStore.getState().enterResult({ type: 'upload', data: null });
 
       openFilePicker({
-        onFile: (file, objectUrl) => {
+        onFile: async (file, objectUrl) => {
+          // Box coordinates come back in pixels, so we need the image size to place them.
+          let imageSize;
+          try {
+            imageSize = await getImageSize(objectUrl);
+          } catch {
+            failDetection();
+            return;
+          }
+
+          const detection = useDetectionStore.getState();
+          detection.clearResult();
+          detection.setStatus('analyzing');
+
           useNavigationStore.getState().updateResult({
             type: 'upload',
             data: {
               imageUrl: objectUrl,
+              imageSize,
               filename: file.name,
               people: null,
               avgConfidence: null,
@@ -40,26 +65,16 @@ export function useKeyboardNav() {
             },
           });
 
-          const formData = new FormData();
-          formData.append('image', file);
-
-          mutate(formData, {
+          mutate(file, {
             onSuccess: (data) => {
+              const result = normalizeDetection(data, imageSize);
+              useDetectionStore.getState().setResult(result);
               useNavigationStore.getState().updateResult({
                 type: 'upload',
-                data: {
-                  imageUrl: objectUrl,
-                  filename: file.name,
-                  people: data.count,
-                  avgConfidence: data.avg_confidence,
-                  inferenceTimeMs: data.inference_time_ms,
-                  detections: data.detections ?? [],
-                },
+                data: { imageUrl: objectUrl, imageSize, filename: file.name, ...result },
               });
             },
-            onError: () => {
-              useNavigationStore.getState().popUp();
-            },
+            onError: failDetection,
           });
         },
         onCancel: () => {
@@ -71,11 +86,7 @@ export function useKeyboardNav() {
     function handleListConfirm(page, selectedItem) {
       const store = useNavigationStore.getState();
       if (page === 0) {
-        if (selectedItem === UPLOAD_INDEX) {
-          startUpload();
-        } else {
-          store.enterResult({ type: 'sample', data: SAMPLE_IMAGES[selectedItem] });
-        }
+        startUpload();
       } else if (page === 1) {
         const historyRows = queryClient.getQueryData(historyQueryKey);
         if (Array.isArray(historyRows) && historyRows[selectedItem]) {
@@ -110,7 +121,7 @@ export function useKeyboardNav() {
 
       e.preventDefault();
       const store = useNavigationStore.getState();
-      const { mode, page, currPage, selectedItem } = store;
+      const { mode, currPage, selectedItem } = store;
 
       if (mode === MODES.NAV) {
         if (isUp) store.movePage(-1);
@@ -135,5 +146,5 @@ export function useKeyboardNav() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openFilePicker, mutate]);
+  }, [openFilePicker, mutate, queryClient]);
 }
