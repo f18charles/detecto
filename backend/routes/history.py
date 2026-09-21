@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+from datetime import datetime
+
+from fastapi import APIRouter, Query
 
 from models.record import DetectionRecord, HistoryEntry, SessionLocal
 
@@ -6,10 +8,24 @@ router = APIRouter()
 
 
 @router.get("/history", response_model=list[HistoryEntry])
-async def get_history() -> list[HistoryEntry]:
+async def get_history(
+    date_from: datetime | None = Query(None, description="Only records at or after this time"),
+    date_to: datetime | None = Query(None, description="Only records at or before this time"),
+    min_confidence: float | None = Query(None, ge=0.0, le=1.0),
+    limit: int | None = Query(None, ge=1, le=1000),
+) -> list[HistoryEntry]:
     with SessionLocal() as session:
-        records = session.query(DetectionRecord).order_by(DetectionRecord.timestamp.desc()).all()
-        return [HistoryEntry.model_validate(record) for record in records]
+        query = session.query(DetectionRecord)
+        if date_from is not None:
+            query = query.filter(DetectionRecord.timestamp >= date_from)
+        if date_to is not None:
+            query = query.filter(DetectionRecord.timestamp <= date_to)
+        if min_confidence is not None:
+            query = query.filter(DetectionRecord.average_confidence >= min_confidence)
+        query = query.order_by(DetectionRecord.timestamp.desc())
+        if limit is not None:
+            query = query.limit(limit)
+        return [HistoryEntry.model_validate(record) for record in query.all()]
 
 
 @router.post("/reset")
