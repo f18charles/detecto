@@ -1,10 +1,18 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Query
 
 from models.record import DetectionRecord, HistoryEntry, SessionLocal
 
 router = APIRouter()
+
+
+def _to_naive_utc(value: datetime | None) -> datetime | None:
+    # Timestamps are stored as naive UTC and SQLite drops any tz offset when
+    # binding, so normalise aware inputs here. Naive inputs are taken as UTC.
+    if value is not None and value.tzinfo is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
 
 
 @router.get("/history", response_model=list[HistoryEntry])
@@ -14,6 +22,8 @@ async def get_history(
     min_confidence: float | None = Query(None, ge=0.0, le=1.0),
     limit: int | None = Query(None, ge=1, le=1000),
 ) -> list[HistoryEntry]:
+    date_from = _to_naive_utc(date_from)
+    date_to = _to_naive_utc(date_to)
     with SessionLocal() as session:
         query = session.query(DetectionRecord)
         if date_from is not None:
