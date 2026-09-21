@@ -11,7 +11,7 @@ export const useNavigationStore = create((set, get) => ({
     page: 0, // 0 - Detect, 1 - History
     currPage: 0, // 0 - Detect, 1 - History
     selectedItem: 0,
-    results: null, // {type: 'sample' | 'upload' / 'history', data: {...}}
+    results: null, // {type: 'upload' | 'history', data: {...}}
 
     // NAV Mode
     movePage: (init) => {

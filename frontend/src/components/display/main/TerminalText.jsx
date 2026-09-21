@@ -1,5 +1,4 @@
 import { MODES, useNavigationStore } from '../../../stores/NavigationStore';
-import { SAMPLE_IMAGES } from '../../../data/mockData';
 import { formatConfidence } from '../../../utils/format';
 import { useHistory } from '../../../hooks/UseHistory';
 
@@ -20,10 +19,7 @@ AWAITING BACKEND CONNECTION...
 function buildListText(page, selectedItem, historyState) {
   if (page === 0) {
     let lines = '> DETECT.SYS — select input\n' + '-'.repeat(36) + '\n';
-    SAMPLE_IMAGES.forEach((img, i) => {
-      lines += `${i === selectedItem ? '▸ ' : '  '}${img.label}\n`;
-    });
-    lines += `${selectedItem === SAMPLE_IMAGES.length ? '▸ ' : '  '}+ upload your own image...\n`;
+    lines += `${selectedItem === 0 ? '▸ ' : '  '}+ upload an image...\n`;
     lines += '-'.repeat(36) + '\n↑/↓ select · ENTER confirm · ESC back';
     return lines;
   }
