@@ -5,7 +5,7 @@ export function formatConfidence(value) {
 
 export function formatTime(ms) {
   if (ms === null || ms === undefined) return '— ms';
-  return `${ms} ms`;
+  return `${Math.round(ms)} ms`;
 }
 
 export function padCount(n) {
