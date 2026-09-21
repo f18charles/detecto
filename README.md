@@ -70,6 +70,17 @@ npm run dev                      # http://localhost:5173
 
 ## Testing methodology
 
+### Automated tests
+
+```bash
+cd backend
+python -m pytest
+```
+
+31 tests in `backend/tests/`: `/detect` (real model on sample photos: counts, response shape, PNG, empty/corrupt/wrong-type uploads, rows saved), `/history` (ordering, every filter, UTC offsets, validation errors, `/reset`) and the preprocessing step. Each test gets its own throwaway SQLite file, so the real `detections.db` is never touched.
+
+### Detection quality
+
 Detection quality is measured against real photos, not only unit tests.
 
 - **Images**: 18 photos in `backend/samples/` (mirrored in `frontend/public/samples/`), all from Wikimedia Commons under CC0, public domain, CC BY or CC BY-SA. Credits are in `ATTRIBUTION.md` next to them.
@@ -183,4 +194,4 @@ frontend/
 
 - `processed_image` (annotated image in the response) is not implemented; the frontend draws the boxes itself.
 - No `.env` loading yet.
-- No automated backend test suite yet; `scripts/validate.py` is the main check.
+- The API tests cover behaviour, not detection quality; `scripts/validate.py` is the check for accuracy.
