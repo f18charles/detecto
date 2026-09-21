@@ -1,6 +1,6 @@
 """Measure the detection pipeline against backend/samples/ground_truth.json.
 
-Run from backend/:  python scripts/validate.py [--markdown]
+Run from backend/:  python scripts/validate.py [--markdown] [--conf 0.4]
 
 Uses the same model loader, preprocessing and thresholds as POST /detect, but
 calls the model directly so no rows are written to the history database.
@@ -37,13 +37,13 @@ TARGETS = {
 }
 
 
-def run_image(model, path: Path) -> dict:
+def run_image(model, path: Path, conf: float) -> dict:
     image = cv2.imdecode(np.fromfile(str(path), np.uint8), cv2.IMREAD_COLOR)
     if image is None:
         raise ValueError("could not decode image")
     image = preprocess_frame(image)
     start = time.perf_counter()
-    result = model.predict(image, classes=[PERSON_CLASS_ID], conf=CONFIDENCE_THRESHOLD, verbose=False)[0]
+    result = model.predict(image, classes=[PERSON_CLASS_ID], conf=conf, verbose=False)[0]
     elapsed = time.perf_counter() - start
     return {"count": len(result.boxes), "confidences": [float(c) for c in result.boxes.conf], "seconds": elapsed}
 
@@ -51,6 +51,7 @@ def run_image(model, path: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--markdown", action="store_true", help="print README-ready tables")
+    parser.add_argument("--conf", type=float, default=CONFIDENCE_THRESHOLD, help="detection threshold (default: the one /detect uses)")
     args = parser.parse_args()
 
     truth = json.loads((SAMPLES / "ground_truth.json").read_text())["images"]
@@ -59,7 +60,7 @@ def main() -> int:
     rows, failures = [], []
     for name, info in sorted(truth.items()):
         try:
-            rows.append({"file": name, "truth": info["count"], **run_image(model, SAMPLES / name)})
+            rows.append({"file": name, "truth": info["count"], **run_image(model, SAMPLES / name, args.conf)})
         except Exception as exc:  # reliability counts any crash
             failures.append((name, str(exc)))
 
@@ -86,6 +87,7 @@ def main() -> int:
         "reliability": metrics["reliability"] >= TARGETS["reliability"],
     }
 
+    print(f"threshold: {args.conf}")
     print(f"{'image':32} {'truth':>5} {'found':>5} {'avg conf':>8} {'ms':>6}")
     for r in rows:
         avg = sum(r["confidences"]) / len(r["confidences"]) if r["confidences"] else 0.0
@@ -97,12 +99,13 @@ def main() -> int:
     labelled_avg = sum(labelled_conf) / len(labelled_conf) if labelled_conf else 0.0
     print(f"\nAvg confidence, labelled images only: {labelled_avg:.2f} (headline figure below includes stress images)")
     print(f"Labelled images: {len(labelled)}, stress images: {len(rows) - len(labelled)}, "
-          f"people to find: {total_truth}, correct: {correct}, false positives: {false_pos}, detections: {detections}")
+          f"people to find: {total_truth}, correct: {correct}, false positives: {false_pos}, detections: {detections}, "
+          f"detections incl. stress images: {len(all_conf)}")
     rows_out = [
         ("Detection accuracy", f"{metrics['accuracy']:.1%}", ">= 85%", passed["accuracy"]),
         ("False positives", f"{metrics['false_positive_rate']:.1%}", "<= 10%", passed["false_positive_rate"]),
         ("Avg inference time", f"{metrics['avg_inference_s'] * 1000:.0f} ms", "<= 1500 ms", passed["avg_inference_s"]),
-        ("Avg confidence", f"{metrics['avg_confidence']:.2f}", ">= 0.70", passed["avg_confidence"]),
+        ("Avg confidence", f"{metrics['avg_confidence']:.3f}", ">= 0.700", passed["avg_confidence"]),
         ("Reliability", f"{metrics['reliability']:.0%}", "100%", passed["reliability"]),
     ]
     if args.markdown:
