@@ -247,7 +247,7 @@ These are styles that are not in tailwindcss */
   .toast-track.scrolling {
     position: absolute;
     left: 0;
-    animation: toastMarquee 3.2s linear 5; /* five passes, then it clears itself */
+    animation: toastMarquee 10s linear 3; /* five passes, then it clears itself */
   }
  
   .toast-track.static {
