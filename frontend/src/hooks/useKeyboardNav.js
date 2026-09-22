@@ -8,6 +8,7 @@ import { useFileUpload } from './useFileUpload';
 import { historyQueryKey } from './UseHistory';
 import { getImageSize } from '../utils/image';
 import { normalizeDetection } from '../utils/detection';
+import { useResetHistory } from './UseResetHistory';
 
 // Detect page has a single entry: upload an image.
 const DETECT_LIST_LENGTH = 1;
@@ -16,10 +17,10 @@ export function useKeyboardNav() {
   const queryClient = useQueryClient();
   const { openFilePicker } = useFileUpload({ accept: 'image/*' });
   const { mutate } = useDetection();
+  
+  const { mutate: resetHistory } = useResetHistory();
 
   useEffect(() => {
-    // Read history at call time — the effect only re-runs when its deps change,
-    // so a value captured during render would be stale.
     function getListLength(page) {
       if (page === 0) return DETECT_LIST_LENGTH;
       if (page === 1) {
@@ -39,7 +40,6 @@ export function useKeyboardNav() {
 
       openFilePicker({
         onFile: async (file, objectUrl) => {
-          // Box coordinates come back in pixels, so we need the image size to place them.
           let imageSize;
           try {
             imageSize = await getImageSize(objectUrl);
@@ -110,6 +110,12 @@ export function useKeyboardNav() {
         return;
       }
 
+      if (e.shiftKey && e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        resetHistory();
+        return; // Stop further navigation checks since we handled this input
+      }
+
       // Block all nav when powered off, booting, or shutting down
       if (!power.isPowerOn || power.isBooting || power.isShuttingDown) return;
 
@@ -146,5 +152,6 @@ export function useKeyboardNav() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openFilePicker, mutate, queryClient]);
+    
+  }, [openFilePicker, mutate, queryClient, resetHistory]);
 }
