@@ -37,15 +37,15 @@ function buildListText(page, selectedItem, historyState) {
 ------------------------------------
 AWAITING BACKEND CONNECTION...
 ------------------------------------
-ESC  back to nav`;
+ESC  back`;
   }
 
   if (isError || !rows || rows.length === 0) {
-    return `> HISTORY.LOG — awaiting backend
+    return `> HISTORY
 ------------------------------------
-AWAITING BACKEND CONNECTION
+No records found
 ------------------------------------
-ESC  back to nav`;
+ESC  back`;
   }
 
   let lines = '> HISTORY\n' + '-'.repeat(36) + '\n';
