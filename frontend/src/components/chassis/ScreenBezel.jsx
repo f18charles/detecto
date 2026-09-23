@@ -4,6 +4,7 @@ import PowerOffDialog from './PowerOffDialog';
 import { MODES, useNavigationStore } from '../../stores/NavigationStore';
 import { usePowerStore } from '../../stores/PowerStore';
 import { useScreenTransition } from '../../hooks/useScreenTransition';
+import { useResetHistory } from '../../hooks/UseResetHistory';
 
 function ScreenBezel() {
   const mode = useNavigationStore((s) => s.mode);
@@ -24,6 +25,8 @@ function ScreenBezel() {
       ? 'crt-power-on'
       : '';
 
+
+    
   return (
     <div className="screen-frame">
       <div
