@@ -172,7 +172,23 @@ Stress images (no exact count, found at threshold 0.4): crowd_essence 17, sports
 
 ## Screenshots
 
-_To be added: Detection View and History View._ Screenshots need the frontend running against the backend and are being added by the frontend owner.
+Captured from the running app (backend on `:8000`, frontend on `:5173`), using two of the `backend/samples/` images through the real upload flow.
+
+**Detection View — `small_group_columbia.jpg`, a clear scene:**
+
+![Detection View, 3 people found](docs/screenshots/detection_small_group.png)
+
+3 of 3 people found, 87% average confidence, 353 ms.
+
+**Detection View — `crowd_essence.jpg`, a dense stress scene:**
+
+![Detection View, a crowd with 17 boxes](docs/screenshots/detection_crowd.png)
+
+17 people found at 65% average confidence. There is no ground truth for this image (see *Failure cases and limits* above), so this shows the model's output on a hard scene, not a verified count.
+
+**History View**, after those two uploads:
+
+![History View listing both detections](docs/screenshots/history_list.png)
 
 ## Project layout
 
