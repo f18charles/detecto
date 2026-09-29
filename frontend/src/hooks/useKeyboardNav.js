@@ -6,17 +6,19 @@ import { useDetectionStore } from '../stores/DetectionStore';
 import { useHistoryFilterStore } from '../stores/HistoryFilterStore';
 import { useDetection } from './UseDetection';
 import { useFileUpload } from './useFileUpload';
+import { useWebcamStream } from './useWebcamStream';
 import { historyQueryKey, getCachedHistory } from './UseHistory';
 import { getImageSize } from '../utils/image';
 import { normalizeDetection } from '../utils/detection';
 import { useResetHistory } from './UseResetHistory';
 
-const DETECT_LIST_LENGTH = 1;
+const DETECT_LIST_LENGTH = 2;
 
 export function useKeyboardNav() {
   const queryClient = useQueryClient();
   const { openFilePicker } = useFileUpload({ accept: 'image/*' });
   const { mutate } = useDetection();
+  const { startStream, stopStream, isStreaming } = useWebcamStream();
   
   const { mutate: resetHistory } = useResetHistory();
 
@@ -106,7 +108,11 @@ export function useKeyboardNav() {
     function handleListConfirm(page, selectedItem) {
       const store = useNavigationStore.getState();
       if (page === 0) {
-        startUpload();
+        if (selectedItem === 0) {
+          startUpload();
+        } else if (selectedItem === 1) {
+          startStream();
+        }
       } else if (page === 1) {
         const filteredRows = getFilteredHistoryRows();
         if (filteredRows[selectedItem]) {
@@ -188,7 +194,10 @@ export function useKeyboardNav() {
       }
 
       if (mode === MODES.RESULT) {
-        if (isBack) store.popUp();
+        if (isBack) {
+          if (isStreaming) stopStream();
+          store.popUp();
+        }
         return;
       }
     }
@@ -196,5 +205,5 @@ export function useKeyboardNav() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
     
-  }, [openFilePicker, mutate, queryClient, resetHistory]);
+  }, [openFilePicker, mutate, queryClient, resetHistory, startStream, stopStream, isStreaming]);
 }
