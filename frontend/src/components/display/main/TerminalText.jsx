@@ -10,7 +10,7 @@ import {
 const IDLE_TEXT = [
   `> DETECT
 ------------------------------------
-INPUT      : awaiting image upload
+INPUT      : awaiting mode selection
 STATUS     : idle
 
 [ Press ENTER to choose an input ]`,
@@ -31,7 +31,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: 'Africa/Nairobi',
 });
 
-const twoDecimals = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+const fourDecimals = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 
 function pad(str, len, alignLeft = true) {
   const s = String(str ?? '');
@@ -41,9 +41,10 @@ function pad(str, len, alignLeft = true) {
 
 function buildListText(page, selectedItem, historyState, filterStore) {
   if (page === 0) {
-    let lines = '> DETECT\n' + '-'.repeat(36) + '\n';
-    lines += `${selectedItem === 0 ? '> ' : '  '}+ upload an image...\n`;
-    lines += '-'.repeat(36) + '\n ENTER confirm · ESC back';
+    let lines = '> DETECT SYSTEM INPUT\n' + '-'.repeat(45) + '\n';
+    lines += `${selectedItem === 0 ? '> ' : '  '}1. Upload image file (JPG / PNG / WEBP)\n`;
+    lines += `${selectedItem === 1 ? '> ' : '  '}2. Live webcam video stream...\n`;
+    lines += '-'.repeat(45) + '\n↑/↓ select input · ENTER confirm · ESC back';
     return lines;
   }
 
@@ -80,7 +81,7 @@ ESC  back`;
   }
 
   if (rows.length === 0) {
-    return `> HISTORY
+    return `> HISTORY LOG DATABASE
   ${filterHeader}
 ---------------------------------------------------------------------
 No records match current filter parameters (Total: ${allRows.length}).
@@ -94,8 +95,8 @@ C conf filter · D date filter · T time filter · X clear filters · ESC back`;
   const sumConf = rows.reduce((acc, r) => acc + (r.average_confidence ?? 0), 0);
   const meanConf = filteredCount > 0 ? sumConf / filteredCount : 0;
 
-  let lines = `> HISTORY\n\n`;
-  lines += `  ${filterHeader}\n\n`;
+  let lines = `> HISTORY LOG DATABASE\n`;
+  lines += `  ${filterHeader}\n`;
   lines += '-'.repeat(69) + '\n';
   lines += `  #  | TIMESTAMP            | PEOPLE | AVG CONF | INFERENCE TIME\n`;
   lines += '-'.repeat(69) + '\n';
@@ -113,14 +114,14 @@ C conf filter · D date filter · T time filter · X clear filters · ESC back`;
     const ts = pad(timeStr, 20);
     const count = pad(String(row.person_count ?? '—'), 6, false);
     const conf = pad(formatConfidence(row.average_confidence), 8, false);
-    const infTime = pad(`${twoDecimals.format(row.inference_time_ms ?? 0)} ms`, 14, false);
+    const infTime = pad(`${fourDecimals.format(row.inference_time_ms ?? 0)} ms`, 14, false);
 
     lines += `${prefix}${num} | ${ts} | ${count} | ${conf} | ${infTime}\n`;
   });
 
-  lines += '-'.repeat(69) + '\n\n';
+  lines += '-'.repeat(69) + '\n';
   lines += `SUMMARY: ${filteredCount} OF ${allRows.length} MATCHING LOGS · ${totalPeople} PEOPLE · ${formatConfidence(meanConf)} MEAN CONF\n`;
-  lines += '-'.repeat(69) + '\n\n\n';
+  lines += '-'.repeat(69) + '\n';
   lines += `↑/↓ select · ENTER detail · C conf · D date · T time · X clear filters`;
 
   return lines;
@@ -139,7 +140,7 @@ function buildHistoryDetailText(row) {
 TIMESTAMP          : ${timeStr}
 PEOPLE DETECTED    : ${row.person_count ?? '—'}
 AVERAGE CONFIDENCE : ${formatConfidence(row.average_confidence ?? 0)}
-INFERENCE TIME     : ${twoDecimals.format(row.inference_time_ms ?? 0)} ms
+INFERENCE TIME     : ${fourDecimals.format(row.inference_time_ms ?? 0)} ms
 ---------------------------------------------------------------------
 
 ESC  back to table`;
