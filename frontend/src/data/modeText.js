@@ -8,6 +8,6 @@ export const MODE_NAMES = {
 
 export const HELP_TEXT = {
   [MODES.NAV]: { title: 'NAV MODE', help: '↑/↓ Switch pages · ENTER Open menu' },
-  [MODES.LIST]: { title: 'LIST MODE', help: '↑/↓ Select item · F Filter · ENTER Open · ESC Back' },
+  [MODES.LIST]: { title: 'LIST MODE', help: '↑/↓ Select item · C/D/T Filters · ENTER Open · ESC Back' },
   [MODES.RESULT]: { title: 'RESULT MODE', help: 'ESC Back to list' },
 };
