@@ -98,6 +98,9 @@ export function useKeyboardNav() {
                 type: 'upload',
                 data: { imageUrl: objectUrl, imageSize, filename: file.name, ...result },
               });
+              // A finished detection is a new history row; refresh the cached
+              // list so the History view shows it without a manual reload.
+              queryClient.invalidateQueries({ queryKey: historyQueryKey });
             },
             onError: (err) => failDetection(err),
           });
