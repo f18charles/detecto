@@ -60,7 +60,8 @@ function VideoStage({ stream, videoUrl, size, onVideoReady, children }) {
         autoPlay
         playsInline
         muted
-        loop
+        loop={!!stream}
+        controls={!stream}
         className="w-full h-full object-contain"
       />
       {children}
