@@ -42,7 +42,7 @@ function pad(str, len, alignLeft = true) {
 function buildListText(page, selectedItem, historyState, filterStore) {
   if (page === 0) {
     let lines = '> DETECT SYSTEM INPUT\n' + '-'.repeat(45) + '\n';
-    lines += `${selectedItem === 0 ? '> ' : '  '}1. Upload image file (JPG / PNG / WEBP)\n`;
+    lines += `${selectedItem === 0 ? '> ' : '  '}1. Upload image file (JPG / PNG)\n`;
     lines += `${selectedItem === 1 ? '> ' : '  '}2. Upload video file (MP4 / WEBM / MOV)\n`;
     lines += `${selectedItem === 2 ? '> ' : '  '}3. Live webcam video stream...\n`;
     lines += '-'.repeat(45) + '\n↑/↓ select input · ENTER confirm · ESC back';

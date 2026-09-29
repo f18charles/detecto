@@ -16,7 +16,7 @@ const DETECT_LIST_LENGTH = 3;
 
 export function useKeyboardNav() {
   const queryClient = useQueryClient();
-  const { openFilePicker: openImagePicker } = useFileUpload({ accept: 'image/*' });
+  const { openFilePicker: openImagePicker } = useFileUpload({ accept: 'image/jpeg,image/png,.jpg,.jpeg,.png' });
   const { openFilePicker: openVideoPicker } = useFileUpload({ accept: 'video/*' });
   const { mutate } = useDetection();
   const { startWebcamStream, startVideoFileStream, stopStream, isStreaming } = useVideoStream();
@@ -57,9 +57,11 @@ export function useKeyboardNav() {
 
       openImagePicker({
         onFile: async (file, objectUrl) => {
-          const isImage = file.type ? file.type.startsWith('image/') : /\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name);
+          const isImage = file.type
+            ? ['image/jpeg', 'image/png'].includes(file.type)
+            : /\.(jpe?g|png)$/i.test(file.name);
           if (!isImage) {
-            failDetection('INVALID FILE FORMAT · PLEASE UPLOAD AN IMAGE (JPG/PNG/WEBP)');
+            failDetection('INVALID FILE FORMAT · PLEASE UPLOAD AN IMAGE (JPG/PNG)');
             return;
           }
 
