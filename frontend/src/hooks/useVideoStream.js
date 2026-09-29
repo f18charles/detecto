@@ -7,9 +7,9 @@ import { normalizeDetection } from '../utils/detection';
 export function useVideoStream({ intervalMs = 800 } = {}) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamError, setStreamError] = useState(null);
-  const videoRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const timerRef = useRef(null);
+  const activeVideoRef = useRef(null);
   const isProcessingRef = useRef(false);
   const videoUrlRef = useRef(null);
 
@@ -28,17 +28,18 @@ export function useVideoStream({ intervalMs = 800 } = {}) {
       URL.revokeObjectURL(videoUrlRef.current);
       videoUrlRef.current = null;
     }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-      videoRef.current.src = '';
+    if (activeVideoRef.current) {
+      activeVideoRef.current.srcObject = null;
+      activeVideoRef.current.src = '';
+      activeVideoRef.current = null;
     }
     setIsStreaming(false);
     isProcessingRef.current = false;
   }, []);
 
   const captureAndDetect = useCallback(async () => {
-    if (!videoRef.current || isProcessingRef.current) return;
-    const video = videoRef.current;
+    const video = activeVideoRef.current;
+    if (!video || isProcessingRef.current) return;
     if (video.readyState < 2 || video.videoWidth === 0) return;
 
     isProcessingRef.current = true;
@@ -55,7 +56,7 @@ export function useVideoStream({ intervalMs = 800 } = {}) {
       );
 
       if (!blob) return;
-      const file = new File([blob], 'frame.jpg', { type: 'image/jpeg' });
+      const file = new File([blob], 'stream_frame.jpg', { type: 'image/jpeg' });
       const imageSize = { width: video.videoWidth, height: video.videoHeight };
 
       const data = await mutateAsync(file);
@@ -66,8 +67,9 @@ export function useVideoStream({ intervalMs = 800 } = {}) {
         type: 'stream',
         data: {
           imageSize,
-          videoRef,
+          stream: mediaStreamRef.current,
           videoUrl: videoUrlRef.current,
+          onVideoReady: handleVideoReady,
           people: result.people,
           avgConfidence: result.avgConfidence,
           inferenceTimeMs: result.inferenceTimeMs,
@@ -75,11 +77,25 @@ export function useVideoStream({ intervalMs = 800 } = {}) {
         },
       });
     } catch (err) {
-      console.error('Frame detection error:', err);
+      console.error('Video stream frame detection error:', err);
     } finally {
       isProcessingRef.current = false;
     }
   }, [mutateAsync]);
+
+  const handleVideoReady = useCallback(
+    (videoElement) => {
+      if (!videoElement) return;
+      activeVideoRef.current = videoElement;
+
+      if (!timerRef.current) {
+        // Immediate first capture, then interval loop
+        captureAndDetect();
+        timerRef.current = setInterval(captureAndDetect, intervalMs);
+      }
+    },
+    [captureAndDetect, intervalMs]
+  );
 
   const startWebcamStream = useCallback(async () => {
     stopStream();
@@ -98,21 +114,15 @@ export function useVideoStream({ intervalMs = 800 } = {}) {
         type: 'stream',
         data: {
           imageSize: { width: 640, height: 480 },
-          videoRef,
+          stream,
           videoUrl: null,
+          onVideoReady: handleVideoReady,
           people: 0,
           avgConfidence: 0,
           inferenceTimeMs: 0,
           detections: [],
         },
       });
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-
-      timerRef.current = setInterval(captureAndDetect, intervalMs);
     } catch (err) {
       const msg = err?.message || 'CAMERA ACCESS DENIED OR NOT AVAILABLE';
       setStreamError(msg);
@@ -120,10 +130,10 @@ export function useVideoStream({ intervalMs = 800 } = {}) {
       useNavigationStore.getState().popUp();
       stopStream();
     }
-  }, [stopStream, captureAndDetect, intervalMs]);
+  }, [stopStream, handleVideoReady]);
 
   const startVideoFileStream = useCallback(
-    async (file, objectUrl) => {
+    (file, objectUrl) => {
       stopStream();
       setStreamError(null);
 
@@ -134,29 +144,18 @@ export function useVideoStream({ intervalMs = 800 } = {}) {
         type: 'stream',
         data: {
           imageSize: { width: 640, height: 480 },
-          videoRef,
+          stream: null,
           videoUrl: objectUrl,
+          filename: file.name,
+          onVideoReady: handleVideoReady,
           people: 0,
           avgConfidence: 0,
           inferenceTimeMs: 0,
           detections: [],
         },
       });
-
-      if (videoRef.current) {
-        videoRef.current.src = objectUrl;
-        videoRef.current.loop = true;
-        videoRef.current.muted = true;
-        try {
-          await videoRef.current.play();
-        } catch (e) {
-          console.error('Video play error:', e);
-        }
-      }
-
-      timerRef.current = setInterval(captureAndDetect, intervalMs);
     },
-    [stopStream, captureAndDetect, intervalMs]
+    [stopStream, handleVideoReady]
   );
 
   useEffect(() => {
@@ -166,7 +165,6 @@ export function useVideoStream({ intervalMs = 800 } = {}) {
   }, [stopStream]);
 
   return {
-    videoRef,
     isStreaming,
     streamError,
     startWebcamStream,
