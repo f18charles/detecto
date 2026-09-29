@@ -109,32 +109,23 @@ Evaluated on 18 benchmark test images located in `backend/samples/` (mirrored in
 
 ## Screenshots
 
-### Detection View (Upload & Live Bounding Box Overlay)
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│ [LIVE CRT DISPLAY]                                                     │
-│                                                                        │
-│   ┌───────────────────────┐                                            │
-│   │ [PERSON 94%]           │                                            │
-│   │                       │                                            │
-│   └───────────────────────┘                                            │
-│                                                                        │
-│ UPLOAD: sports_lineup.jpg · 22 PEOPLE · 0.82 AVG CONF · 118 ms         │
-└────────────────────────────────────────────────────────────────────────┘
-```
+Captured from the running app (backend on `:8000`, frontend on `:5173`), using two of the `backend/samples/` images through the real upload flow.
 
-### History View (Structured Table & Metrics Summary)
-```
-> HISTORY LOG DATABASE                    FILTERS: CONF [≥70%] · DATE [TODAY]
----------------------------------------------------------------------
-  #  | TIMESTAMP            | PEOPLE | AVG CONF | INFERENCE TIME
----------------------------------------------------------------------
-> 01 | 2026-09-29 10:15:30  |   4   |  89.5%   |    120.4 ms
-  02 | 2026-09-29 09:45:12  |   1   |  94.2%   |    115.0 ms
----------------------------------------------------------------------
-SUMMARY: 2 MATCHING LOGS · 5 PEOPLE · 91.8% MEAN CONF
----------------------------------------------------------------------
-```
+**Detection View — `small_group_columbia.jpg`, a clear scene:**
+
+![Detection View, 3 people found](docs/screenshots/detection_small_group.png)
+
+3 of 3 people found, 87% average confidence, 353 ms.
+
+**Detection View — `crowd_essence.jpg`, a dense stress scene:**
+
+![Detection View, a crowd with 17 boxes](docs/screenshots/detection_crowd.png)
+
+17 people found at 65% average confidence.
+
+**History View, listing detections:**
+
+![History View listing both detections](docs/screenshots/history_list.png)
 
 ---
 
@@ -151,6 +142,8 @@ detecto/
 │   ├── utils/preprocessing.py  # OpenCV CLAHE image enhancement
 │   ├── scripts/validate.py     # Evaluation metrics runner
 │   └── samples/                # 18 test images & ground truth JSON
+├── docs/
+│   └── screenshots/            # UI screenshots
 ├── frontend/
 │   ├── src/
 │   │   ├── api/Client.js       # Axios HTTP client
