@@ -30,8 +30,17 @@ export function useKeyboardNav() {
       return 0;
     }
 
-    function failDetection() {
-      useDetectionStore.getState().setStatus('error');
+    function failDetection(err) {
+      let message = 'UNSPECIFIED ERROR';
+      if (typeof err === 'string') {
+        message = err;
+      } else if (err?.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        message = typeof detail === 'string' ? detail : JSON.stringify(detail);
+      } else if (err?.message) {
+        message = err.message;
+      }
+      useDetectionStore.getState().setStatus('error', message);
       useNavigationStore.getState().popUp();
     }
 
@@ -40,11 +49,18 @@ export function useKeyboardNav() {
 
       openFilePicker({
         onFile: async (file, objectUrl) => {
+          // File format validation
+          const isImage = file.type ? file.type.startsWith('image/') : /\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name);
+          if (!isImage) {
+            failDetection('INVALID FILE FORMAT · PLEASE UPLOAD AN IMAGE (JPG/PNG/WEBP)');
+            return;
+          }
+
           let imageSize;
           try {
             imageSize = await getImageSize(objectUrl);
           } catch {
-            failDetection();
+            failDetection('CORRUPTED OR UNREADABLE IMAGE FILE');
             return;
           }
 
@@ -74,7 +90,7 @@ export function useKeyboardNav() {
                 data: { imageUrl: objectUrl, imageSize, filename: file.name, ...result },
               });
             },
-            onError: failDetection,
+            onError: (err) => failDetection(err),
           });
         },
         onCancel: () => {
