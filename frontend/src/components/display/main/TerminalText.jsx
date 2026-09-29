@@ -1,7 +1,11 @@
 import { MODES, useNavigationStore } from '../../../stores/NavigationStore';
 import { formatConfidence } from '../../../utils/format';
 import { useHistory } from '../../../hooks/UseHistory';
-import { useHistoryFilterStore } from '../../../stores/HistoryFilterStore';
+import {
+  useHistoryFilterStore,
+  DATE_FILTERS,
+  TIME_FILTERS,
+} from '../../../stores/HistoryFilterStore';
 
 const IDLE_TEXT = [
   `> DETECT
@@ -27,7 +31,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: 'Africa/Nairobi',
 });
 
-const fourDecimals = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+const twoDecimals = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 
 function pad(str, len, alignLeft = true) {
   const s = String(str ?? '');
@@ -35,7 +39,7 @@ function pad(str, len, alignLeft = true) {
   return alignLeft ? s.padEnd(len, ' ') : s.padStart(len, ' ');
 }
 
-function buildListText(page, selectedItem, historyState, minConfidence) {
+function buildListText(page, selectedItem, historyState, filterStore) {
   if (page === 0) {
     let lines = '> DETECT\n' + '-'.repeat(36) + '\n';
     lines += `${selectedItem === 0 ? '> ' : '  '}+ upload an image...\n`;
@@ -43,32 +47,55 @@ function buildListText(page, selectedItem, historyState, minConfidence) {
     return lines;
   }
 
-  const { data: rows, isLoading, isError } = historyState;
-  const filterLabel = minConfidence > 0 ? `≥ ${(minConfidence * 100).toFixed(0)}% CONF` : 'ALL LOGS';
+  const { data: rawRows, isLoading, isError } = historyState;
+  const { minConfidence, dateFilter, timeFilter, filterRows } = filterStore;
+
+  const confLabel = minConfidence > 0 ? `≥${(minConfidence * 100).toFixed(0)}%` : 'ALL';
+  const dateObj = DATE_FILTERS.find((f) => f.id === dateFilter);
+  const dateLabel = dateObj ? dateObj.label : 'ALL';
+  const timeObj = TIME_FILTERS.find((f) => f.id === timeFilter);
+  const timeLabel = timeObj ? timeObj.label : 'ALL';
+
+  const filterHeader = `FILTERS: CONF [${confLabel}] (C) · DATE [${dateLabel}] (D) · TIME [${timeLabel}] (T)`;
 
   if (isLoading) {
-    return `> HISTORY LOG DATABASE                    [FILTER: ${filterLabel}]
+    return `> HISTORY LOG DATABASE
+  ${filterHeader}
 ---------------------------------------------------------------------
 AWAITING BACKEND CONNECTION...
 ---------------------------------------------------------------------
 ESC  back`;
   }
 
-  if (isError || !rows || rows.length === 0) {
-    return `> HISTORY LOG DATABASE                    [FILTER: ${filterLabel}]
+  const allRows = Array.isArray(rawRows) ? rawRows : [];
+  const rows = filterRows(allRows);
+
+  if (isError || allRows.length === 0) {
+    return `> HISTORY LOG DATABASE
+  ${filterHeader}
 ---------------------------------------------------------------------
-No records found matching filter.
+No records found in database.
 ---------------------------------------------------------------------
-F cycle filter · ESC back`;
+ESC  back`;
+  }
+
+  if (rows.length === 0) {
+    return `> HISTORY
+  ${filterHeader}
+---------------------------------------------------------------------
+No records match current filter parameters (Total: ${allRows.length}).
+---------------------------------------------------------------------
+C conf filter · D date filter · T time filter · X clear filters · ESC back`;
   }
 
   // Summary Metrics
-  const totalCount = rows.length;
+  const filteredCount = rows.length;
   const totalPeople = rows.reduce((acc, r) => acc + (r.person_count ?? 0), 0);
   const sumConf = rows.reduce((acc, r) => acc + (r.average_confidence ?? 0), 0);
-  const meanConf = totalCount > 0 ? sumConf / totalCount : 0;
+  const meanConf = filteredCount > 0 ? sumConf / filteredCount : 0;
 
-  let lines = `> HISTORY LOG DATABASE                    [FILTER: ${filterLabel}]\n`;
+  let lines = `> HISTORY\n\n`;
+  lines += `  ${filterHeader}\n\n`;
   lines += '-'.repeat(69) + '\n';
   lines += `  #  | TIMESTAMP            | PEOPLE | AVG CONF | INFERENCE TIME\n`;
   lines += '-'.repeat(69) + '\n';
@@ -86,15 +113,15 @@ F cycle filter · ESC back`;
     const ts = pad(timeStr, 20);
     const count = pad(String(row.person_count ?? '—'), 6, false);
     const conf = pad(formatConfidence(row.average_confidence), 8, false);
-    const infTime = pad(`${fourDecimals.format(row.inference_time_ms ?? 0)} ms`, 14, false);
+    const infTime = pad(`${twoDecimals.format(row.inference_time_ms ?? 0)} ms`, 14, false);
 
     lines += `${prefix}${num} | ${ts} | ${count} | ${conf} | ${infTime}\n`;
   });
 
-  lines += '-'.repeat(69) + '\n';
-  lines += `SUMMARY: ${totalCount} RECORD(S) · ${totalPeople} TOTAL PEOPLE · ${formatConfidence(meanConf)} MEAN CONF\n`;
-  lines += '-'.repeat(69) + '\n';
-  lines += `↑/↓ select · ENTER detail · F filter · ESC back · SHIFT+R reset`;
+  lines += '-'.repeat(69) + '\n\n';
+  lines += `SUMMARY: ${filteredCount} OF ${allRows.length} MATCHING LOGS · ${totalPeople} PEOPLE · ${formatConfidence(meanConf)} MEAN CONF\n`;
+  lines += '-'.repeat(69) + '\n\n\n';
+  lines += `↑/↓ select · ENTER detail · C conf · D date · T time · X clear filters`;
 
   return lines;
 }
@@ -112,7 +139,7 @@ function buildHistoryDetailText(row) {
 TIMESTAMP          : ${timeStr}
 PEOPLE DETECTED    : ${row.person_count ?? '—'}
 AVERAGE CONFIDENCE : ${formatConfidence(row.average_confidence ?? 0)}
-INFERENCE TIME     : ${fourDecimals.format(row.inference_time_ms ?? 0)} ms
+INFERENCE TIME     : ${twoDecimals.format(row.inference_time_ms ?? 0)} ms
 ---------------------------------------------------------------------
 
 ESC  back to table`;
@@ -120,16 +147,15 @@ ESC  back to table`;
 
 function TerminalText({ mode, page, results }) {
   const selectedItem = useNavigationStore((s) => s.selectedItem);
-  const minConfidence = useHistoryFilterStore((s) => s.minConfidence);
+  const filterStore = useHistoryFilterStore();
 
-  const historyParams = minConfidence > 0 ? { min_confidence: minConfidence } : undefined;
-  const historyQuery = useHistory(historyParams);
+  const historyQuery = useHistory();
 
   let text;
   if (mode === MODES.RESULT && results?.type === 'history') {
     text = buildHistoryDetailText(results.data);
   } else if (mode === MODES.LIST) {
-    text = buildListText(page, selectedItem, historyQuery, minConfidence);
+    text = buildListText(page, selectedItem, historyQuery, filterStore);
   } else {
     text = IDLE_TEXT[page];
   }

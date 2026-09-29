@@ -6,12 +6,11 @@ import { useDetectionStore } from '../stores/DetectionStore';
 import { useHistoryFilterStore } from '../stores/HistoryFilterStore';
 import { useDetection } from './UseDetection';
 import { useFileUpload } from './useFileUpload';
-import { historyQueryKey } from './UseHistory';
+import { historyQueryKey, getCachedHistory } from './UseHistory';
 import { getImageSize } from '../utils/image';
 import { normalizeDetection } from '../utils/detection';
 import { useResetHistory } from './UseResetHistory';
 
-// Detect page has a single entry: upload an image.
 const DETECT_LIST_LENGTH = 1;
 
 export function useKeyboardNav() {
@@ -22,14 +21,16 @@ export function useKeyboardNav() {
   const { mutate: resetHistory } = useResetHistory();
 
   useEffect(() => {
+    function getFilteredHistoryRows() {
+      const queryRows = queryClient.getQueryData(historyQueryKey);
+      const rawRows = Array.isArray(queryRows) ? queryRows : getCachedHistory();
+      return useHistoryFilterStore.getState().filterRows(rawRows);
+    }
+
     function getListLength(page) {
       if (page === 0) return DETECT_LIST_LENGTH;
       if (page === 1) {
-        const minConfidence = useHistoryFilterStore.getState().minConfidence;
-        const historyParams = minConfidence > 0 ? { min_confidence: minConfidence } : undefined;
-        const queryKey = historyParams ? [...historyQueryKey, historyParams] : historyQueryKey;
-        const rows = queryClient.getQueryData(queryKey);
-        return Array.isArray(rows) ? rows.length : 0;
+        return getFilteredHistoryRows().length;
       }
       return 0;
     }
@@ -53,7 +54,6 @@ export function useKeyboardNav() {
 
       openFilePicker({
         onFile: async (file, objectUrl) => {
-          // File format validation
           const isImage = file.type ? file.type.startsWith('image/') : /\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name);
           if (!isImage) {
             failDetection('INVALID FILE FORMAT · PLEASE UPLOAD AN IMAGE (JPG/PNG/WEBP)');
@@ -108,12 +108,9 @@ export function useKeyboardNav() {
       if (page === 0) {
         startUpload();
       } else if (page === 1) {
-        const minConfidence = useHistoryFilterStore.getState().minConfidence;
-        const historyParams = minConfidence > 0 ? { min_confidence: minConfidence } : undefined;
-        const queryKey = historyParams ? [...historyQueryKey, historyParams] : historyQueryKey;
-        const historyRows = queryClient.getQueryData(queryKey);
-        if (Array.isArray(historyRows) && historyRows[selectedItem]) {
-          store.enterResult({ type: 'history', data: historyRows[selectedItem] });
+        const filteredRows = getFilteredHistoryRows();
+        if (filteredRows[selectedItem]) {
+          store.enterResult({ type: 'history', data: filteredRows[selectedItem] });
         }
       }
     }
@@ -121,7 +118,6 @@ export function useKeyboardNav() {
     function handleKeyDown(e) {
       const power = usePowerStore.getState();
 
-      // Power-off dialog shortcuts
       if (power.showPowerOffDialog) {
         if (e.key === 'Enter' || e.key.toLowerCase() === 'y') {
           e.preventDefault();
@@ -136,20 +132,36 @@ export function useKeyboardNav() {
       if (e.shiftKey && e.key.toLowerCase() === 'r') {
         e.preventDefault();
         resetHistory();
-        return; // Stop further navigation checks since we handled this input
+        return;
       }
 
-      // Block all nav when powered off, booting, or shutting down
       if (!power.isPowerOn || power.isBooting || power.isShuttingDown) return;
 
       const store = useNavigationStore.getState();
       const { mode, currPage, selectedItem } = store;
 
-      // Filter toggle (F key) in History list mode
-      if (mode === MODES.LIST && currPage === 1 && e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        e.preventDefault();
-        useHistoryFilterStore.getState().cycleFilter();
-        return;
+      // Filter controls in History mode (page === 1)
+      if (mode === MODES.LIST && currPage === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        const key = e.key.toLowerCase();
+        const filterStore = useHistoryFilterStore.getState();
+
+        if (key === 'c') {
+          e.preventDefault();
+          filterStore.cycleConfidence();
+          return;
+        } else if (key === 'd') {
+          e.preventDefault();
+          filterStore.cycleDate();
+          return;
+        } else if (key === 't') {
+          e.preventDefault();
+          filterStore.cycleTime();
+          return;
+        } else if (key === 'x') {
+          e.preventDefault();
+          filterStore.resetAllFilters();
+          return;
+        }
       }
 
       const isUp = e.key === 'ArrowUp' || e.key === 'ArrowLeft';
