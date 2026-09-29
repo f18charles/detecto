@@ -12,6 +12,7 @@ function resultSignature(results) {
   if (!results) return '';
   const { type, data } = results;
   if (type === 'stream') return `stream:${data?.filename ?? 'live'}`;
+  if (type === 'video') return `video:${data?.filename ?? ''}:${data?.status ?? ''}`;
   if (type === 'upload') {
     const resolved = Array.isArray(data?.detections) ? 'done' : 'pending';
     return `upload:${data?.filename ?? ''}:${resolved}`;

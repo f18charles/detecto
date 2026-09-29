@@ -7,6 +7,7 @@ import { useHistoryFilterStore } from '../stores/HistoryFilterStore';
 import { useDetection } from './UseDetection';
 import { useFileUpload } from './useFileUpload';
 import { useVideoStream } from './useVideoStream';
+import { useVideoPrecompute } from './useVideoPrecompute';
 import { historyQueryKey, getCachedHistory } from './UseHistory';
 import { getImageSize } from '../utils/image';
 import { normalizeDetection } from '../utils/detection';
@@ -19,7 +20,8 @@ export function useKeyboardNav() {
   const { openFilePicker: openImagePicker } = useFileUpload({ accept: 'image/jpeg,image/png,.jpg,.jpeg,.png' });
   const { openFilePicker: openVideoPicker } = useFileUpload({ accept: 'video/*' });
   const { mutate } = useDetection();
-  const { startWebcamStream, startVideoFileStream, stopStream, isStreaming } = useVideoStream();
+  const { startWebcamStream, stopStream, isStreaming } = useVideoStream();
+  const { isPrecomputing, startVideoPrecompute, cancelPrecompute } = useVideoPrecompute();
   
   const { mutate: resetHistory } = useResetHistory();
 
@@ -119,7 +121,7 @@ export function useKeyboardNav() {
             failDetection('INVALID FILE FORMAT · PLEASE UPLOAD A VIDEO (MP4/WEBM/MOV)');
             return;
           }
-          startVideoFileStream(file, objectUrl);
+          startVideoPrecompute(file, objectUrl);
         },
         onCancel: () => {
           useNavigationStore.getState().popUp();
@@ -219,8 +221,12 @@ export function useKeyboardNav() {
 
       if (mode === MODES.RESULT) {
         if (isBack) {
-          if (isStreaming) stopStream();
-          store.popUp();
+          if (isPrecomputing) {
+            cancelPrecompute();
+          } else {
+            if (isStreaming) stopStream();
+            store.popUp();
+          }
         }
         return;
       }
@@ -229,5 +235,5 @@ export function useKeyboardNav() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
     
-  }, [openImagePicker, openVideoPicker, mutate, queryClient, resetHistory, startWebcamStream, startVideoFileStream, stopStream, isStreaming]);
+  }, [openImagePicker, openVideoPicker, mutate, queryClient, resetHistory, startWebcamStream, stopStream, isStreaming, isPrecomputing, startVideoPrecompute, cancelPrecompute]);
 }

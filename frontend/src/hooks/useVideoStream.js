@@ -9,6 +9,8 @@ import { normalizeDetection } from '../utils/detection';
 // improving accuracy. Downscaling also shrinks the upload on every frame.
 const MAX_FRAME_DIM = 640;
 
+// Live webcam detection. Uploaded video files go through useVideoPrecompute
+// instead, which analyses the clip up-front and then plays it in sync.
 export function useVideoStream({ intervalMs = 500 } = {}) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamError, setStreamError] = useState(null);
@@ -16,12 +18,8 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
   const timerRef = useRef(null);
   const activeVideoRef = useRef(null);
   const isProcessingRef = useRef(false);
-  const videoUrlRef = useRef(null);
   const captureRef = useRef(null);
   const detachListenersRef = useRef(null);
-  // Bumped whenever a stream is stopped/started so an in-flight detection from
-  // a previous video cannot paint its boxes onto a new one.
-  const sessionRef = useRef(0);
 
   const { mutateAsync } = useDetection();
 
@@ -32,9 +30,8 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
     }
   }, []);
 
-  // Called on every frame the video actually renders. We only start a capture
-  // when nothing is in flight and the video is genuinely playing, so pausing
-  // freezes the last boxes instead of re-uploading the same frozen frame.
+  // Called with the <video> element. We only start a capture when nothing is in
+  // flight and the video is genuinely playing, so pausing freezes the boxes.
   const handleVideoReady = useCallback(
     (videoElement) => {
       if (!videoElement) return;
@@ -58,8 +55,6 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
         videoElement.removeEventListener('ended', onStopped);
       };
 
-      // If playback already started before the listener was attached (e.g. a
-      // webcam stream), kick off the loop now.
       if (!videoElement.paused && !videoElement.ended) {
         captureRef.current?.();
       }
@@ -69,7 +64,7 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
 
   // Schedule the next frame as soon as the previous detection has been applied,
   // rather than on a fixed wall-clock interval that wastes the tail of every
-  // processing window. Stops scheduling once the video is paused or ended.
+  // processing window.
   const scheduleNext = useCallback(() => {
     clearTimer();
     const video = activeVideoRef.current;
@@ -86,7 +81,6 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
     if (video.paused || video.ended) return;
     if (video.readyState < 2 || video.videoWidth === 0) return;
 
-    const session = sessionRef.current;
     isProcessingRef.current = true;
 
     try {
@@ -111,7 +105,6 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
       const imageSize = { width: canvas.width, height: canvas.height };
 
       const data = await mutateAsync(file);
-      if (session !== sessionRef.current) return;
       const result = normalizeDetection(data, imageSize);
 
       useDetectionStore.getState().setResult(result);
@@ -120,7 +113,6 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
         data: {
           imageSize,
           stream: mediaStreamRef.current,
-          videoUrl: videoUrlRef.current,
           onVideoReady: handleVideoReady,
           people: result.people,
           avgConfidence: result.avgConfidence,
@@ -142,7 +134,6 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
 
   const stopStream = useCallback(() => {
     clearTimer();
-    sessionRef.current += 1;
     detachListenersRef.current?.();
     detachListenersRef.current = null;
 
@@ -150,13 +141,8 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
     }
-    if (videoUrlRef.current) {
-      URL.revokeObjectURL(videoUrlRef.current);
-      videoUrlRef.current = null;
-    }
     if (activeVideoRef.current) {
       activeVideoRef.current.srcObject = null;
-      activeVideoRef.current.src = '';
       activeVideoRef.current = null;
     }
     setIsStreaming(false);
@@ -181,7 +167,6 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
         data: {
           imageSize: { width: 640, height: 480 },
           stream,
-          videoUrl: null,
           onVideoReady: handleVideoReady,
           people: 0,
           avgConfidence: 0,
@@ -198,32 +183,6 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
     }
   }, [stopStream, handleVideoReady]);
 
-  const startVideoFileStream = useCallback(
-    (file, objectUrl) => {
-      stopStream();
-      setStreamError(null);
-
-      videoUrlRef.current = objectUrl;
-      setIsStreaming(true);
-
-      useNavigationStore.getState().enterResult({
-        type: 'stream',
-        data: {
-          imageSize: { width: 640, height: 480 },
-          stream: null,
-          videoUrl: objectUrl,
-          filename: file.name,
-          onVideoReady: handleVideoReady,
-          people: 0,
-          avgConfidence: 0,
-          inferenceTimeMs: 0,
-          detections: [],
-        },
-      });
-    },
-    [stopStream, handleVideoReady]
-  );
-
   useEffect(() => {
     return () => {
       stopStream();
@@ -234,7 +193,6 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
     isStreaming,
     streamError,
     startWebcamStream,
-    startVideoFileStream,
     stopStream,
   };
 }
