@@ -20,12 +20,12 @@ const logError = (message, error) => {
 // detect → uploads an image file (JPEG, PNG) via multipart/form-data and returns:
 // { count, boxes: [{x, y, width, height, confidence}], average_confidence, inference_time_ms, processed_image }
 // Box coordinates are in pixels of the original image.
-export const detect = async (file) => {
+export const detect = async (file, { signal } = {}) => {
     const formData = new FormData()
     formData.append(DETECT_FILE_FIELD, file)
     try {
         // No manual Content-Type: the browser must set it so the multipart boundary is included.
-        const response = await api.post('/detect', formData)
+        const response = await api.post('/detect', formData, { signal })
         return response.data
     } catch (error) {
         logError("Image upload failed", error)
