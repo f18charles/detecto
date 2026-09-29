@@ -1,6 +1,11 @@
 import { MODES, useNavigationStore } from '../../../stores/NavigationStore';
 import { formatConfidence } from '../../../utils/format';
 import { useHistory } from '../../../hooks/UseHistory';
+import {
+  useHistoryFilterStore,
+  DATE_FILTERS,
+  TIME_FILTERS,
+} from '../../../stores/HistoryFilterStore';
 
 const IDLE_TEXT = [
   `> DETECT
@@ -17,12 +22,24 @@ STATUS     : idle
 ];
 
 const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
-  dateStyle: 'long',
-  timeStyle: 'short',
-  timeZone: 'Africa/Nairobi'
-})
+  month: 'short',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+  timeZone: 'Africa/Nairobi',
+});
 
-function buildListText(page, selectedItem, historyState) {
+const twoDecimals = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+
+function pad(str, len, alignLeft = true) {
+  const s = String(str ?? '');
+  if (s.length >= len) return s.slice(0, len);
+  return alignLeft ? s.padEnd(len, ' ') : s.padStart(len, ' ');
+}
+
+function buildListText(page, selectedItem, historyState, filterStore) {
   if (page === 0) {
     let lines = '> DETECT\n' + '-'.repeat(36) + '\n';
     lines += `${selectedItem === 0 ? '> ' : '  '}+ upload an image...\n`;
@@ -30,65 +47,124 @@ function buildListText(page, selectedItem, historyState) {
     return lines;
   }
 
-  const { data: rows, isLoading, isError } = historyState;
+  const { data: rawRows, isLoading, isError } = historyState;
+  const { minConfidence, dateFilter, timeFilter, filterRows } = filterStore;
+
+  const confLabel = minConfidence > 0 ? `≥${(minConfidence * 100).toFixed(0)}%` : 'ALL';
+  const dateObj = DATE_FILTERS.find((f) => f.id === dateFilter);
+  const dateLabel = dateObj ? dateObj.label : 'ALL';
+  const timeObj = TIME_FILTERS.find((f) => f.id === timeFilter);
+  const timeLabel = timeObj ? timeObj.label : 'ALL';
+
+  const filterHeader = `FILTERS: CONF [${confLabel}] (C) · DATE [${dateLabel}] (D) · TIME [${timeLabel}] (T)`;
 
   if (isLoading) {
-    return `> HISTORY.LOG — awaiting backend
-------------------------------------
+    return `> HISTORY LOG DATABASE
+  ${filterHeader}
+---------------------------------------------------------------------
 AWAITING BACKEND CONNECTION...
-------------------------------------
+---------------------------------------------------------------------
 ESC  back`;
   }
 
-  if (isError || !rows || rows.length === 0) {
+  const allRows = Array.isArray(rawRows) ? rawRows : [];
+  const rows = filterRows(allRows);
+
+  if (isError || allRows.length === 0) {
+    return `> HISTORY LOG DATABASE
+  ${filterHeader}
+---------------------------------------------------------------------
+No records found in database.
+---------------------------------------------------------------------
+ESC  back`;
+  }
+
+  if (rows.length === 0) {
     return `> HISTORY
-------------------------------------
-No records found
-------------------------------------
-ESC  back`;
+  ${filterHeader}
+---------------------------------------------------------------------
+No records match current filter parameters (Total: ${allRows.length}).
+---------------------------------------------------------------------
+C conf filter · D date filter · T time filter · X clear filters · ESC back`;
   }
 
-  let lines = '> HISTORY\n' + '-'.repeat(36) + '\n';
+  // Summary Metrics
+  const filteredCount = rows.length;
+  const totalPeople = rows.reduce((acc, r) => acc + (r.person_count ?? 0), 0);
+  const sumConf = rows.reduce((acc, r) => acc + (r.average_confidence ?? 0), 0);
+  const meanConf = filteredCount > 0 ? sumConf / filteredCount : 0;
+
+  let lines = `> HISTORY\n\n`;
+  lines += `  ${filterHeader}\n\n`;
+  lines += '-'.repeat(69) + '\n';
+  lines += `  #  | TIMESTAMP            | PEOPLE | AVG CONF | INFERENCE TIME\n`;
+  lines += '-'.repeat(69) + '\n';
+
   rows.forEach((row, i) => {
-    lines += `${i === selectedItem ? '> ' : '  '}${dateTimeFormatter.format(new Date(row.timestamp)) ?? `RECORD #${i + 1}`} (count: ${row.person_count ?? '—'})\n`;
+    const isSelected = i === selectedItem;
+    const prefix = isSelected ? '> ' : '  ';
+    const num = pad(String(i + 1).padStart(2, '0'), 2);
+    let timeStr = '—';
+    try {
+      timeStr = dateTimeFormatter.format(new Date(row.timestamp));
+    } catch {
+      timeStr = pad(String(row.timestamp).slice(0, 19), 20);
+    }
+    const ts = pad(timeStr, 20);
+    const count = pad(String(row.person_count ?? '—'), 6, false);
+    const conf = pad(formatConfidence(row.average_confidence), 8, false);
+    const infTime = pad(`${twoDecimals.format(row.inference_time_ms ?? 0)} ms`, 14, false);
+
+    lines += `${prefix}${num} | ${ts} | ${count} | ${conf} | ${infTime}\n`;
   });
-  lines += '-'.repeat(36) + '\n↑/↓ select · ENTER confirm · ESC back \nSHIFT + R reset history';
+
+  lines += '-'.repeat(69) + '\n\n';
+  lines += `SUMMARY: ${filteredCount} OF ${allRows.length} MATCHING LOGS · ${totalPeople} PEOPLE · ${formatConfidence(meanConf)} MEAN CONF\n`;
+  lines += '-'.repeat(69) + '\n\n\n';
+  lines += `↑/↓ select · ENTER detail · C conf · D date · T time · X clear filters`;
+
   return lines;
 }
 
-const fourDecimals = new Intl.NumberFormat('en-US', {maximumFractionDigits: 4})
-
 function buildHistoryDetailText(row) {
-  return `> HISTORY
-----------------------------------------------------------------------------
-TIMESTAMP          : ${dateTimeFormatter.format(new Date(row.timestamp)) ?? '—'}
-COUNT              : ${row.person_count ?? '—'}
-CONFIDENCE         : ${formatConfidence(row.average_confidence ?? '-')}
-Inference time(ms) : ${fourDecimals.format(row.inference_time_ms) ?? '-'}
-----------------------------------------------------------------------------
+  let timeStr = '—';
+  try {
+    timeStr = dateTimeFormatter.format(new Date(row.timestamp));
+  } catch {
+    timeStr = String(row.timestamp);
+  }
 
-ESC  back to list`;
+  return `> HISTORY RECORD DETAIL
+---------------------------------------------------------------------
+TIMESTAMP          : ${timeStr}
+PEOPLE DETECTED    : ${row.person_count ?? '—'}
+AVERAGE CONFIDENCE : ${formatConfidence(row.average_confidence ?? 0)}
+INFERENCE TIME     : ${twoDecimals.format(row.inference_time_ms ?? 0)} ms
+---------------------------------------------------------------------
+
+ESC  back to table`;
 }
 
 function TerminalText({ mode, page, results }) {
   const selectedItem = useNavigationStore((s) => s.selectedItem);
+  const filterStore = useHistoryFilterStore();
+
   const historyQuery = useHistory();
 
   let text;
   if (mode === MODES.RESULT && results?.type === 'history') {
     text = buildHistoryDetailText(results.data);
   } else if (mode === MODES.LIST) {
-    text = buildListText(page, selectedItem, historyQuery);
+    text = buildListText(page, selectedItem, historyQuery, filterStore);
   } else {
     text = IDLE_TEXT[page];
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center w-full h-full my-auto mx-auto z-10 pointer-events-none select-none">
-      <pre className="term cursor text-left">{text}</pre>
+    <div className="flex-1 flex flex-col items-center justify-center w-full h-full my-auto mx-auto z-10 pointer-events-none select-none overflow-hidden">
+      <pre className="term cursor text-left text-xs leading-tight font-mono">{text}</pre>
     </div>
   );
 }
 
 export default TerminalText;
-

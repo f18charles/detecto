@@ -3,14 +3,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { MODES, useNavigationStore } from '../stores/NavigationStore';
 import { usePowerStore } from '../stores/PowerStore';
 import { useDetectionStore } from '../stores/DetectionStore';
+import { useHistoryFilterStore } from '../stores/HistoryFilterStore';
 import { useDetection } from './UseDetection';
 import { useFileUpload } from './useFileUpload';
-import { historyQueryKey } from './UseHistory';
+import { historyQueryKey, getCachedHistory } from './UseHistory';
 import { getImageSize } from '../utils/image';
 import { normalizeDetection } from '../utils/detection';
 import { useResetHistory } from './UseResetHistory';
 
-// Detect page has a single entry: upload an image.
 const DETECT_LIST_LENGTH = 1;
 
 export function useKeyboardNav() {
@@ -21,17 +21,31 @@ export function useKeyboardNav() {
   const { mutate: resetHistory } = useResetHistory();
 
   useEffect(() => {
+    function getFilteredHistoryRows() {
+      const queryRows = queryClient.getQueryData(historyQueryKey);
+      const rawRows = Array.isArray(queryRows) ? queryRows : getCachedHistory();
+      return useHistoryFilterStore.getState().filterRows(rawRows);
+    }
+
     function getListLength(page) {
       if (page === 0) return DETECT_LIST_LENGTH;
       if (page === 1) {
-        const rows = queryClient.getQueryData(historyQueryKey);
-        return Array.isArray(rows) ? rows.length : 0;
+        return getFilteredHistoryRows().length;
       }
       return 0;
     }
 
-    function failDetection() {
-      useDetectionStore.getState().setStatus('error');
+    function failDetection(err) {
+      let message = 'UNSPECIFIED ERROR';
+      if (typeof err === 'string') {
+        message = err;
+      } else if (err?.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        message = typeof detail === 'string' ? detail : JSON.stringify(detail);
+      } else if (err?.message) {
+        message = err.message;
+      }
+      useDetectionStore.getState().setStatus('error', message);
       useNavigationStore.getState().popUp();
     }
 
@@ -40,11 +54,17 @@ export function useKeyboardNav() {
 
       openFilePicker({
         onFile: async (file, objectUrl) => {
+          const isImage = file.type ? file.type.startsWith('image/') : /\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name);
+          if (!isImage) {
+            failDetection('INVALID FILE FORMAT · PLEASE UPLOAD AN IMAGE (JPG/PNG/WEBP)');
+            return;
+          }
+
           let imageSize;
           try {
             imageSize = await getImageSize(objectUrl);
           } catch {
-            failDetection();
+            failDetection('CORRUPTED OR UNREADABLE IMAGE FILE');
             return;
           }
 
@@ -74,7 +94,7 @@ export function useKeyboardNav() {
                 data: { imageUrl: objectUrl, imageSize, filename: file.name, ...result },
               });
             },
-            onError: failDetection,
+            onError: (err) => failDetection(err),
           });
         },
         onCancel: () => {
@@ -88,9 +108,9 @@ export function useKeyboardNav() {
       if (page === 0) {
         startUpload();
       } else if (page === 1) {
-        const historyRows = queryClient.getQueryData(historyQueryKey);
-        if (Array.isArray(historyRows) && historyRows[selectedItem]) {
-          store.enterResult({ type: 'history', data: historyRows[selectedItem] });
+        const filteredRows = getFilteredHistoryRows();
+        if (filteredRows[selectedItem]) {
+          store.enterResult({ type: 'history', data: filteredRows[selectedItem] });
         }
       }
     }
@@ -98,7 +118,6 @@ export function useKeyboardNav() {
     function handleKeyDown(e) {
       const power = usePowerStore.getState();
 
-      // Power-off dialog shortcuts
       if (power.showPowerOffDialog) {
         if (e.key === 'Enter' || e.key.toLowerCase() === 'y') {
           e.preventDefault();
@@ -113,11 +132,37 @@ export function useKeyboardNav() {
       if (e.shiftKey && e.key.toLowerCase() === 'r') {
         e.preventDefault();
         resetHistory();
-        return; // Stop further navigation checks since we handled this input
+        return;
       }
 
-      // Block all nav when powered off, booting, or shutting down
       if (!power.isPowerOn || power.isBooting || power.isShuttingDown) return;
+
+      const store = useNavigationStore.getState();
+      const { mode, currPage, selectedItem } = store;
+
+      // Filter controls in History mode (page === 1)
+      if (mode === MODES.LIST && currPage === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        const key = e.key.toLowerCase();
+        const filterStore = useHistoryFilterStore.getState();
+
+        if (key === 'c') {
+          e.preventDefault();
+          filterStore.cycleConfidence();
+          return;
+        } else if (key === 'd') {
+          e.preventDefault();
+          filterStore.cycleDate();
+          return;
+        } else if (key === 't') {
+          e.preventDefault();
+          filterStore.cycleTime();
+          return;
+        } else if (key === 'x') {
+          e.preventDefault();
+          filterStore.resetAllFilters();
+          return;
+        }
+      }
 
       const isUp = e.key === 'ArrowUp' || e.key === 'ArrowLeft';
       const isDown = e.key === 'ArrowDown' || e.key === 'ArrowRight';
@@ -126,8 +171,6 @@ export function useKeyboardNav() {
       if (!isUp && !isDown && !isConfirm && !isBack) return;
 
       e.preventDefault();
-      const store = useNavigationStore.getState();
-      const { mode, currPage, selectedItem } = store;
 
       if (mode === MODES.NAV) {
         if (isUp) store.movePage(-1);
