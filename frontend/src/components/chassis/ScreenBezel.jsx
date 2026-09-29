@@ -4,20 +4,40 @@ import PowerOffDialog from './PowerOffDialog';
 import { MODES, useNavigationStore } from '../../stores/NavigationStore';
 import { usePowerStore } from '../../stores/PowerStore';
 import { useScreenTransition } from '../../hooks/useScreenTransition';
-import { useResetHistory } from '../../hooks/UseResetHistory';
+
+// Only structural changes should trigger a screen transition. Live stream
+// detections change every frame, so the key below deliberately ignores box
+// counts/coordinates and only reacts to the result's identity.
+function resultSignature(results) {
+  if (!results) return '';
+  const { type, data } = results;
+  if (type === 'stream') return `stream:${data?.filename ?? 'live'}`;
+  if (type === 'upload') {
+    const resolved = Array.isArray(data?.detections) ? 'done' : 'pending';
+    return `upload:${data?.filename ?? ''}:${resolved}`;
+  }
+  if (type === 'history') return `history:${data?.id ?? ''}`;
+  return type;
+}
 
 function ScreenBezel() {
   const mode = useNavigationStore((s) => s.mode);
   const page = useNavigationStore((s) => s.currPage);
   const results = useNavigationStore((s) => s.results);
   const isPowerOn = usePowerStore((s) => s.isPowerOn);
-  const isBooting = usePowerStore((s) => s.isBooting);
   const isShuttingDown = usePowerStore((s) => s.isShuttingDown);
 
-  const { displayed, flicker, onFlickerEnd } = useScreenTransition({ mode, page, results });
+  const transitionKey = `${mode}|${page}|${resultSignature(results)}`;
+  const { displayed, flicker, onFlickerEnd } = useScreenTransition(
+    { mode, page, results },
+    transitionKey,
+  );
 
+  // Render the live result so streaming boxes track the current frame, but
+  // fall back to the last displayed one while a transition is settling.
+  const activeResults = results ?? displayed.results;
   const showResultView =
-    displayed.mode === MODES.RESULT && displayed.results?.type !== 'history';
+    displayed.mode === MODES.RESULT && activeResults?.type !== 'history';
 
   const powerClass = isShuttingDown
     ? 'crt-power-off-dot'
@@ -38,7 +58,7 @@ function ScreenBezel() {
         {isPowerOn && !isShuttingDown && (
           <>
             {showResultView ? (
-              <ResultView result={displayed.results} />
+              <ResultView result={activeResults} />
             ) : (
               <TerminalText mode={displayed.mode} page={displayed.page} results={displayed.results} />
             )}
