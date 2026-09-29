@@ -21,6 +21,8 @@ STATUS     : idle
 [ Press ENTER to browse ]`,
 ];
 
+// Uses the browser's local timezone so displayed timestamps agree with the
+// date/time-of-day filters in HistoryFilterStore, which parse in local time.
 const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: '2-digit',
@@ -28,7 +30,6 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
   minute: '2-digit',
   second: '2-digit',
   hour12: false,
-  timeZone: 'Africa/Nairobi',
 });
 
 const fourDecimals = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
@@ -163,8 +164,8 @@ function TerminalText({ mode, page, results }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center w-full h-full my-auto mx-auto z-10 pointer-events-none select-none overflow-hidden">
-      <pre className="term cursor text-left text-xs leading-tight font-mono">{text}</pre>
+    <div className="flex-1 min-h-0 flex flex-col items-center w-full h-full mx-auto z-10 select-none overflow-auto">
+      <pre className="term cursor text-left text-xs leading-tight font-mono my-auto">{text}</pre>
     </div>
   );
 }
