@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { MODES, useNavigationStore } from '../stores/NavigationStore';
 import { usePowerStore } from '../stores/PowerStore';
 import { useDetectionStore } from '../stores/DetectionStore';
+import { useHistoryFilterStore } from '../stores/HistoryFilterStore';
 import { useDetection } from './UseDetection';
 import { useFileUpload } from './useFileUpload';
 import { historyQueryKey } from './UseHistory';
@@ -24,7 +25,10 @@ export function useKeyboardNav() {
     function getListLength(page) {
       if (page === 0) return DETECT_LIST_LENGTH;
       if (page === 1) {
-        const rows = queryClient.getQueryData(historyQueryKey);
+        const minConfidence = useHistoryFilterStore.getState().minConfidence;
+        const historyParams = minConfidence > 0 ? { min_confidence: minConfidence } : undefined;
+        const queryKey = historyParams ? [...historyQueryKey, historyParams] : historyQueryKey;
+        const rows = queryClient.getQueryData(queryKey);
         return Array.isArray(rows) ? rows.length : 0;
       }
       return 0;
@@ -104,7 +108,10 @@ export function useKeyboardNav() {
       if (page === 0) {
         startUpload();
       } else if (page === 1) {
-        const historyRows = queryClient.getQueryData(historyQueryKey);
+        const minConfidence = useHistoryFilterStore.getState().minConfidence;
+        const historyParams = minConfidence > 0 ? { min_confidence: minConfidence } : undefined;
+        const queryKey = historyParams ? [...historyQueryKey, historyParams] : historyQueryKey;
+        const historyRows = queryClient.getQueryData(queryKey);
         if (Array.isArray(historyRows) && historyRows[selectedItem]) {
           store.enterResult({ type: 'history', data: historyRows[selectedItem] });
         }
@@ -135,6 +142,16 @@ export function useKeyboardNav() {
       // Block all nav when powered off, booting, or shutting down
       if (!power.isPowerOn || power.isBooting || power.isShuttingDown) return;
 
+      const store = useNavigationStore.getState();
+      const { mode, currPage, selectedItem } = store;
+
+      // Filter toggle (F key) in History list mode
+      if (mode === MODES.LIST && currPage === 1 && e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        useHistoryFilterStore.getState().cycleFilter();
+        return;
+      }
+
       const isUp = e.key === 'ArrowUp' || e.key === 'ArrowLeft';
       const isDown = e.key === 'ArrowDown' || e.key === 'ArrowRight';
       const isConfirm = e.key === 'Enter' || e.key === ' ';
@@ -142,8 +159,6 @@ export function useKeyboardNav() {
       if (!isUp && !isDown && !isConfirm && !isBack) return;
 
       e.preventDefault();
-      const store = useNavigationStore.getState();
-      const { mode, currPage, selectedItem } = store;
 
       if (mode === MODES.NAV) {
         if (isUp) store.movePage(-1);

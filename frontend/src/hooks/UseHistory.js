@@ -1,4 +1,4 @@
-import {useMutation, useQuery} from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { history } from '../api/Client'
 
 export const historyQueryKey = ['history']
