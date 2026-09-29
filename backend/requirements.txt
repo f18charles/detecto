@@ -7,6 +7,4 @@ opencv-python
 numpy
 pytest
 httpx
-
-# For real inference (not wired up yet, see routes/detect.py):
-# ultralytics
+ultralytics

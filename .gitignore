@@ -6,6 +6,7 @@ __pycache__/
 .venv/
 backend/detections.db
 backend/.env
+*.pt
 
 # Node / frontend (frontend/ also has its own .gitignore)
 node_modules/

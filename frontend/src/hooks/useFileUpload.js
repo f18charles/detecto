@@ -50,7 +50,7 @@ export function useFileUpload({ accept = 'image/*' } = {}) {
     // remove abandoned file 
     useEffect(() => {
         return () => {
-            if (urlRef.current) URL.revokeObjectURL(url.current)
+            if (urlRef.current) URL.revokeObjectURL(urlRef.current)
         }
     }, [])
 

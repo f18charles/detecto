@@ -27,7 +27,7 @@ const TopBar = () => {
       <div className="flex items-center gap-3">
         <div>
           <h1 className="text-[15px] font-semibold tracking-wide text-chassis-text leading-none">
-            DETECTO
+            LOOKOUT
           </h1>
           <p className="text-[10px] font-mono text-chassis-muted mt-1">Station 01-072-073</p>
         </div>

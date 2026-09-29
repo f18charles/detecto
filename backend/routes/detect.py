@@ -1,12 +1,34 @@
+import logging
 import time
 
+import cv2
+import numpy as np
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from ultralytics import YOLO
 
 from models.record import BoundingBox, DetectionRecord, DetectionResponse, SessionLocal
+from utils.preprocessing import preprocess_frame
+
+logger = logging.getLogger("detecto.detect")
 
 router = APIRouter()
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png"}
+PERSON_CLASS_ID = 0
+CONFIDENCE_THRESHOLD = 0.4
+
+_model: YOLO | None = None
+
+
+def get_model() -> YOLO:
+    global _model
+    if _model is None:
+        _model = YOLO("yolov8n.pt")
+        # First predict() call triggers a one-time internal warmup (torch/torchvision
+        # op registration + a dummy forward pass) — do it now, at load time, so it
+        # doesn't get billed to whichever request happens to arrive first.
+        _model.predict(np.zeros((640, 640, 3), dtype=np.uint8), verbose=False)
+    return _model
 
 
 @router.post("/detect", response_model=DetectionResponse)
@@ -18,15 +40,41 @@ async def detect(file: UploadFile = File(...)) -> DetectionResponse:
     if not contents:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
+    image = cv2.imdecode(np.frombuffer(contents, np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid image")
+
+    image = preprocess_frame(image)
+
     start = time.perf_counter()
-    # TODO(backend): replace this mocked response with real inference
-    # (see utils/preprocessing.py + a pretrained person-detection model).
-    boxes = [
-        BoundingBox(x=120, y=80, width=140, height=260, confidence=0.91),
-        BoundingBox(x=310, y=95, width=130, height=250, confidence=0.87),
-    ]
+    results = get_model().predict(
+        image,
+        classes=[PERSON_CLASS_ID],
+        conf=CONFIDENCE_THRESHOLD,
+        verbose=False,
+    )
     inference_time_ms = (time.perf_counter() - start) * 1000
-    average_confidence = sum(b.confidence for b in boxes) / len(boxes)
+
+    boxes = []
+    for box in results[0].boxes:
+        x1, y1, x2, y2 = box.xyxy[0].tolist()
+        boxes.append(
+            BoundingBox(
+                x=x1,
+                y=y1,
+                width=x2 - x1,
+                height=y2 - y1,
+                confidence=float(box.conf[0]),
+            )
+        )
+
+    average_confidence = sum(b.confidence for b in boxes) / len(boxes) if boxes else 0.0
+    logger.info(
+        "count=%d avg_confidence=%.3f inference_time_ms=%.1f",
+        len(boxes),
+        average_confidence,
+        inference_time_ms,
+    )
 
     with SessionLocal() as session:
         session.add(

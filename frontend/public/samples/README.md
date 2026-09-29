@@ -1,3 +1,3 @@
 # Sample images
 
-Place at least 10 demo images here (e.g. `frame1.jpg`, `frame2.jpg`, ...) for testing the Detection View, per `.claude/DETECTO.md`.
+Demo images for the Detection View. They are mirrored from `backend/samples/`, which also holds `ground_truth.json` (hand-counted people per image). See `ATTRIBUTION.md` for credits and licenses.
