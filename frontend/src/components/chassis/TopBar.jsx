@@ -22,6 +22,12 @@ const TopBar = () => {
     }
   }
 
+  const statusText = !isSystemActive
+    ? 'System Offline'
+    : isBackendConnected
+      ? 'System Online'
+      : 'Backend Offline';
+
   return (
     <div className="flex items-center w-full justify-between px-2 pb-4 mb-4 border-b border-black/25">
       <div className="flex items-center gap-3">
@@ -35,7 +41,7 @@ const TopBar = () => {
       <div className="flex items-center gap-2.5">
         <span className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${lightStyle}`} />
         <span className="text-[10px] font-mono text-chassis-muted select-none">
-          System Online
+          {statusText}
         </span>
       </div>
     </div>
