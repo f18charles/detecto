@@ -125,7 +125,7 @@ Captured from the running app (backend on `:8000`, frontend on `:5173`), using t
 
 **History View, listing detections:**
 
-![History View listing both detections](docs/screenshots/history_list.png)
+![History View listing both detections](docs/screenshots/history_view.png)
 
 ---
 
