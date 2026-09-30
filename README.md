@@ -4,8 +4,9 @@ A real-time person detection and counting system. Upload an image or a video fil
 
 - **Backend**: FastAPI + YOLOv8n (Ultralytics), SQLite for history. Serves person detection for a still image, a single video frame, or a stream of frames.
 - **Frontend**: React + Vite + Tailwind CSS v4, featuring:
-  - **Detection View**: Image upload, video-file upload (sampled frame-by-frame), and live webcam streaming, with real-time bounding-box overlays, count, confidence and processing time.
-  - **History View**: Interactive CRT data table — columns `name, type, people, avg conf, inference time, timestamp` — with multi-criteria filtering (Confidence threshold, Date, Time of Day), a dynamic metrics summary, and `localStorage` offline caching.
+  - **Detection View**: Image upload, video-file upload (sampled frame-by-frame), and live webcam streaming, with real-time bounding-box overlays, count, confidence and processing time. A fixed restricted-area region is checked on every detection; going over a headcount limit draws an alert border and flags the caption. A live stream also plots a fading trail of recent detection positions.
+  - **History View**: Interactive CRT data table — columns `name, type, people, avg conf, inference time, timestamp` — with multi-criteria filtering (Confidence threshold, Date, Time of Day), a dynamic metrics summary, `localStorage` offline caching, a confirm-gated clear-history command, and CSV export of the currently filtered rows.
+  - **Stats View**: Average crowd size per hour, bucketed from the full history and rendered as a 24-hour bar chart.
 
 ---
 
@@ -42,7 +43,22 @@ A real-time person detection and counting system. Upload an image or a video fil
 |---|---|---|
 | **Image** (JPG / PNG) | Posted straight to `/detect`. | One row, `media_type = image`. |
 | **Video** (MP4 / WEBM / MOV) | Sampled at 8 Hz in the browser; each frame posted to `/detect`; boxes interpolated during playback. | **One** row compiled from every frame, `media_type = video`. |
-| **Webcam** | Frames captured from the live stream and posted to `/detect`. | One row per captured frame, `media_type = image`. |
+| **Webcam** | Frames captured from the live stream and posted to `/detect` with `media_type=stream`. | **One** row per session, compiled from every captured tick via `POST /detect/finalize` when the stream stops, `media_type = stream`. |
+
+---
+
+## Bonus Features
+
+All six bonus items from the project brief:
+
+| Feature | Notes |
+|---|---|
+| Real-time webcam feed with overlays | Live capture + detection boxes drawn over the feed, see Detection Inputs above. |
+| Live browser camera capture | Same feature — `getUserMedia`, no separate hardware/app needed. |
+| Region-based alerts | A fixed "restricted area" (center 50% of the frame) and a headcount threshold (>3), checked on every image upload and every live-stream tick. Over the limit draws a red border around the region and prefixes the result caption with `[ ALERT: RESTRICTED AREA OVER LIMIT ]`. Fixed rather than user-drawable — this is a keyboard-only console, so an arbitrary ROI editor doesn't fit the interaction model; the mechanism is real, the region just isn't configurable yet. |
+| Heatmap / movement tracking lines | While a webcam stream is running, a fading ~24s trail of recent detection positions is plotted over the feed. There's no cross-frame person re-identification (no track-id concept for live streams), so this is a "recent movement" visualization rather than full tracking — the precomputed video-file path does track people across frames for its own playback, but that data isn't reused here. |
+| Stats panel (avg crowd size per hour) | New Stats view — buckets every history row by hour-of-day and shows the average `person_count` per hour as a bar chart, entirely client-side. |
+| Export history to CSV | `E` on the History list downloads the currently filtered rows as a CSV file. |
 
 ---
 
@@ -50,11 +66,12 @@ A real-time person detection and counting system. Upload an image or a video fil
 
 | Endpoint | Method | Payload / Params | Response |
 |---|---|---|---|
-| `/detect` | `POST` | `multipart/form-data`: `file` (required) plus optional `media_type` (`image`\|`video`), `media_name`, `frame_index`, `total_frames` | JSON with `count`, `boxes[]` (`x, y, width, height, confidence`), `average_confidence`, `inference_time_ms`, `processed_image`. `400`/`422` on invalid, empty, or incomplete video-frame payloads. |
+| `/detect` | `POST` | `multipart/form-data`: `file` (required) plus optional `media_type` (`image`\|`video`\|`stream`), `media_name`, `frame_index`, `total_frames` | JSON with `count`, `boxes[]` (`x, y, width, height, confidence`), `average_confidence`, `inference_time_ms`, `processed_image`. `400`/`422` on invalid, empty, or incomplete video-frame/stream payloads. |
+| `/detect/finalize` | `POST` | JSON body: `{"media_name": "..."}` | `{"status": "saved", "frame_count": N}` if that session had buffered ticks, compiling them into one history row; `{"status": "nothing to finalize"}` otherwise (e.g. a stream stopped before its first tick completed). |
 | `/history` | `GET` | Params: `date_from`, `date_to`, `min_confidence`, `limit` | JSON array of records (`id`, `timestamp`, `person_count`, `average_confidence`, `inference_time_ms`, `media_type`, `media_name`, `frame_count`), newest first. |
 | `/reset` | `POST` | None | `{"status": "cleared"}` |
 
-`media_type`/`media_name`/`frame_index`/`total_frames` are only sent by the video path: they tag a request as one frame of a video so the backend can compile all of its frames into a single history row when the **last** frame (`frame_index == total_frames - 1`) arrives.
+`media_type`/`media_name`/`frame_index`/`total_frames` are sent by the video-file and webcam-stream paths so the backend can compile many `/detect` calls into a single history row instead of one per call: a video request tags itself `media_type=video` and the backend finalizes automatically when the **last** frame (`frame_index == total_frames - 1`) arrives; a stream request tags itself `media_type=stream` (grouped by `media_name`, a per-session id) and has no known last frame, so the frontend calls `/detect/finalize` explicitly when the user stops the stream.
 
 ---
 
@@ -103,11 +120,11 @@ npm run dev
 
 ```bash
 # Backend (from backend/)
-./.venv/bin/python -m pytest -q                  # 35 unit/integration tests
+./.venv/bin/python -m pytest -q                  # 39 unit/integration tests
 ./.venv/bin/python scripts/validate.py --markdown # reproduce the metrics below
 
 # Frontend (from frontend/)
-npm test                                          # Vitest + jsdom unit tests
+npm test                                          # Vitest + jsdom unit tests, 28 tests
 npm run lint                                      # oxlint
 ```
 
@@ -182,36 +199,49 @@ Reproduced from `validate.py`. `truth = -` marks an uncountable stress image (fe
 
 ## Frontend User Navigation Shortcuts
 
-- `↑ / ↓ / ← / →`: Navigate menus, options, and history rows.
+- `↑ / ↓ / ← / →`: Navigate pages (Detect / History / Stats), menus, options, and history rows.
 - `ENTER` / `SPACE`: Select a menu option / open a history record.
 - `ESC` / `BACKSPACE`: Return to the previous level / cancel video pre-processing / stop the live stream.
 - `F`: Cycle the Confidence threshold filter (`ALL`, `≥50%`, `≥60%`, `≥70%`, `≥80%`, `≥90%`).
 - `D`: Cycle the Date filter (`ALL DATES`, `TODAY`, `PAST 24H`, `PAST 7D`).
 - `T`: Cycle the Time-of-day filter (`ALL DAY`, `MORNING`, `AFTERNOON`, `EVENING`, `NIGHT`).
 - `X`: Reset all active filters.
+- `E`: Export the currently filtered History rows to a CSV file.
 - `C`: Clear history — opens a `[Y] YES / [N] NO` confirmation before erasing the database.
 
 ---
 
 ## Screenshots
 
-Captured from the running app (backend on `:8000`, frontend on `:5173`), using two of the `backend/samples/` images through the real upload flow.
+Captured from the running app (backend on `:8000`, frontend on `:5173`) during a real end-to-end walkthrough — every screenshot below is a genuine result from that session, not a mock-up.
 
 **Detection View — `small_group_columbia.jpg`, a clear scene:**
 
 ![Detection View, 3 people found](docs/screenshots/detection_small_group.png)
 
-3 of 3 people found, 87% average confidence, 353 ms.
+3 of 3 people found, 87% average confidence, 177 ms.
 
-**Detection View — `crowd_essence.jpg`, a dense stress scene:**
+**Detection View — `crowd_essence.jpg`, a dense scene that trips the region alert:**
 
-![Detection View, a crowd with 17 boxes](docs/screenshots/detection_crowd.png)
+![Detection View, a crowd with 17 boxes and an alert triggered](docs/screenshots/detection_crowd_alert.png)
 
-17 people found at 65% average confidence.
+17 people found at 65% average confidence; enough of them fall inside the restricted-area region to clear the threshold of 3, so the caption reads `[ ALERT: RESTRICTED AREA OVER LIMIT ]`.
 
-**History View, listing detections:**
+**Detection View — video-file upload, `4_people.mp4`:**
 
-![History View listing both detections](docs/screenshots/history_view.png)
+![Detection View playing back a video with synced boxes](docs/screenshots/detection_video.png)
+
+96 sampled frames compiled into a single history row; 5 peak people across the clip.
+
+**History View, listing a mix of image, video and stream detections:**
+
+![History View listing four detections of different media types](docs/screenshots/history_view.png)
+
+**Stats View, average crowd size per hour:**
+
+![Stats View showing a bar chart of average crowd size per hour](docs/screenshots/stats_view.png)
+
+All four detections from this session landed in the same hour, so only one bar is populated — an honest result of a short test session, not a full day of traffic.
 
 ---
 
@@ -222,23 +252,23 @@ detecto/
 ├── backend/
 │   ├── main.py                 # FastAPI app & lifecycle (CORS, DB init, model warm-up)
 │   ├── routes/
-│   │   ├── detect.py           # POST /detect (image + video-frame ingest, history roll-up)
+│   │   ├── detect.py           # POST /detect + /detect/finalize (image/video/stream ingest, history roll-up)
 │   │   └── history.py          # GET /history & POST /reset
 │   ├── models/record.py        # SQLite schema (DetectionRecord) & Pydantic models
 │   ├── utils/preprocessing.py  # OpenCV CLAHE image enhancement
 │   ├── scripts/validate.py     # Evaluation-metrics runner
-│   ├── tests/                  # pytest: detect, history, preprocessing (35 tests)
+│   ├── tests/                  # pytest: detect, history, preprocessing (39 tests)
 │   └── samples/                # 18 test images + ground_truth.json
 ├── docs/
 │   └── screenshots/            # UI screenshots
 ├── frontend/
 │   ├── vitest.config.js        # Test runner config (jsdom)
-│   ├── public/samples/         # Demo benchmark image assets
+│   ├── public/samples/         # Demo benchmark image + video assets
 │   └── src/
 │       ├── api/Client.js       # Axios HTTP client
 │       ├── components/         # Console chassis & CRT screen components
-│       ├── hooks/              # Webcam, video precompute, upload, keyboard, history
+│       ├── hooks/              # Webcam stream, video precompute, upload, keyboard, history, movement trail
 │       ├── stores/             # Domain Zustand stores (Navigation, Detection, Filters)
-│       ├── utils/              # Detection normalisation & timeline interpolation
+│       ├── utils/              # Detection normalisation, timeline interpolation, region alerts, CSV export
 │       └── test/setup.js       # jest-dom matchers + jsdom stubs
 ```
