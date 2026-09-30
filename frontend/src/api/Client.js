@@ -21,10 +21,12 @@ const logError = (message, error) => {
 // { count, boxes: [{x, y, width, height, confidence}], average_confidence, inference_time_ms, processed_image }
 // Box coordinates are in pixels of the original image.
 //
-// mediaType/mediaName/frameIndex/totalFrames are optional and only used by the
-// video precompute path: they tag a call as one frame of a video so the backend
-// compiles all of a video's frames into a single history row instead of one per
-// frame. Omit them for a plain image upload or a webcam capture.
+// mediaType/mediaName are optional. mediaType="video" plus frameIndex/totalFrames
+// tags a call as one frame of an uploaded video file, so the backend compiles
+// all of that video's frames into a single history row. mediaType="stream" tags
+// it as one tick of a live webcam session (grouped by mediaName, a session id);
+// the backend buffers those too, and the caller must call finalizeStream once
+// the session ends to compile them into a row. Omit both for a plain image upload.
 export const detect = async (file, { signal, mediaType, mediaName, frameIndex, totalFrames } = {}) => {
     const formData = new FormData()
     formData.append(DETECT_FILE_FIELD, file)
@@ -38,6 +40,18 @@ export const detect = async (file, { signal, mediaType, mediaName, frameIndex, t
         return response.data
     } catch (error) {
         logError("Image upload failed", error)
+        throw error
+    }
+}
+
+// finalizeStream → tells the backend a live webcam session has ended, so it can
+// compile that session's buffered ticks into a single history row.
+export const finalizeStream = async (mediaName) => {
+    try {
+        const response = await api.post('/detect/finalize', { media_name: mediaName })
+        return response.data
+    } catch (error) {
+        logError("Failed to finalize stream session", error)
         throw error
     }
 }

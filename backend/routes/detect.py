@@ -6,7 +6,13 @@ import numpy as np
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from ultralytics import YOLO
 
-from models.record import BoundingBox, DetectionRecord, DetectionResponse, SessionLocal
+from models.record import (
+    BoundingBox,
+    DetectionRecord,
+    DetectionResponse,
+    FinalizeRequest,
+    SessionLocal,
+)
 from utils.preprocessing import preprocess_frame
 
 logger = logging.getLogger("detecto.detect")
@@ -23,6 +29,11 @@ _model: YOLO | None = None
 # Single-process, in-memory, no TTL: a video that never sends its last frame
 # (e.g. the user cancels mid-upload) leaks its entry for the life of the process.
 _video_buffers: dict[str, dict] = {}
+
+# Same idea, for a live webcam/stream session: unlike a video file, a stream has
+# no known frame count, so it's compiled by an explicit /detect/finalize call
+# (when the client stops the stream) instead of a "last frame index".
+_stream_buffers: dict[str, dict] = {}
 
 
 def get_model() -> YOLO:
@@ -52,6 +63,9 @@ async def detect(
             status_code=400,
             detail="Video frames require media_name, frame_index and total_frames",
         )
+
+    if media_type == "stream" and media_name is None:
+        raise HTTPException(status_code=400, detail="Stream frames require media_name")
 
     contents = await file.read()
     if not contents:
@@ -121,6 +135,16 @@ async def detect(
                 )
                 session.commit()
             del _video_buffers[media_name]
+    elif media_type == "stream":
+        buffer = _stream_buffers.setdefault(
+            media_name,
+            {"frames_seen": 0, "max_count": 0, "confidence_sum": 0.0, "confidence_n": 0, "inference_time_sum": 0.0},
+        )
+        buffer["frames_seen"] += 1
+        buffer["max_count"] = max(buffer["max_count"], len(boxes))
+        buffer["confidence_sum"] += sum(b.confidence for b in boxes)
+        buffer["confidence_n"] += len(boxes)
+        buffer["inference_time_sum"] += inference_time_ms
     else:
         with SessionLocal() as session:
             session.add(
@@ -141,3 +165,25 @@ async def detect(
         inference_time_ms=inference_time_ms,
         processed_image=None,
     )
+
+
+@router.post("/detect/finalize")
+async def finalize_stream(payload: FinalizeRequest) -> dict:
+    buffer = _stream_buffers.pop(payload.media_name, None)
+    if buffer is None or buffer["frames_seen"] == 0:
+        return {"status": "nothing to finalize"}
+
+    compiled_confidence = buffer["confidence_sum"] / buffer["confidence_n"] if buffer["confidence_n"] else 0.0
+    with SessionLocal() as session:
+        session.add(
+            DetectionRecord(
+                person_count=buffer["max_count"],
+                average_confidence=compiled_confidence,
+                inference_time_ms=buffer["inference_time_sum"] / buffer["frames_seen"],
+                media_type="stream",
+                media_name=payload.media_name,
+                frame_count=buffer["frames_seen"],
+            )
+        )
+        session.commit()
+    return {"status": "saved", "frame_count": buffer["frames_seen"]}
