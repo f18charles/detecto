@@ -7,6 +7,7 @@ import { formatConfidence, formatTime } from '../../../utils/format';
 function ToastScreen() {
   const currPage = useNavigationStore((s) => s.currPage);
   const status = useDetectionStore((s) => s.status);
+  const errorMessage = useDetectionStore((s) => s.errorMessage);
   const currentResult = useDetectionStore((s) => s.currentResult);
   const isPowerOn = usePowerStore((s) => s.isPowerOn);
   const isShuttingDown = usePowerStore((s) => s.isShuttingDown);
@@ -40,10 +41,11 @@ function ToastScreen() {
       );
       setToastKey((k) => k + 1);
     } else if (status === 'error') {
-      setMessage('DETECTION FAILED · BACKEND UNREACHABLE OR REQUEST ERROR');
+      const detail = errorMessage ? errorMessage.toUpperCase() : 'BACKEND UNREACHABLE OR REQUEST ERROR';
+      setMessage(`DETECTION FAILED · ${detail}`);
       setToastKey((k) => k + 1);
     }
-  }, [status, currentResult]);
+  }, [status, currentResult, errorMessage]);
 
   // Play the message: scroll if it overflows the panel, fade if it fits
   useEffect(() => {

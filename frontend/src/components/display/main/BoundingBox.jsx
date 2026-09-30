@@ -1,5 +1,7 @@
 
 
+import { memo } from 'react';
+
 const BoundingBox = ({x1, y1, x2, y2, confidence, index=0, delayMs = 0}) => {
     return (
         <div className="box"
@@ -18,4 +20,4 @@ const BoundingBox = ({x1, y1, x2, y2, confidence, index=0, delayMs = 0}) => {
     )
 }
 
-export default BoundingBox
+export default memo(BoundingBox)

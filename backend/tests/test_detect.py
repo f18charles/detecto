@@ -104,3 +104,145 @@ def test_rejected_upload_is_not_saved(client, session_factory):
     with session_factory() as session:
         assert session.query(DetectionRecord).count() == 0
 
+
+def test_image_upload_defaults_media_type_and_saves_immediately(client, session_factory, sample_bytes):
+    post_image(client, sample_bytes("small_group_columbia.jpg"), name="small_group_columbia.jpg")
+
+    with session_factory() as session:
+        rows = session.query(DetectionRecord).all()
+    assert len(rows) == 1
+    assert rows[0].media_type == "image"
+    assert rows[0].media_name == "small_group_columbia.jpg"
+    assert rows[0].frame_count is None
+
+
+def post_video_frame(client, data, media_name, frame_index, total_frames, name="frame.jpg"):
+    return client.post(
+        "/detect",
+        files={"file": (name, data, "image/jpeg")},
+        data={
+            "media_type": "video",
+            "media_name": media_name,
+            "frame_index": frame_index,
+            "total_frames": total_frames,
+        },
+    )
+
+
+def test_video_frames_only_save_one_history_row_at_the_end(client, session_factory, sample_bytes):
+    # 1, 2 then 3 people across three frames of the same "video".
+    frames = ["single_cyclist_unsplash.jpg", "pair_men_cold.jpg", "small_group_columbia.jpg"]
+
+    for i, name in enumerate(frames):
+        response = post_video_frame(client, sample_bytes(name), "clip.mp4", i, len(frames))
+        assert response.status_code == 200
+        with session_factory() as session:
+            rows = session.query(DetectionRecord).all()
+        if i < len(frames) - 1:
+            assert len(rows) == 0
+        else:
+            assert len(rows) == 1
+            row = rows[0]
+            assert row.person_count == 3  # the max across the three frames
+            assert row.media_type == "video"
+            assert row.media_name == "clip.mp4"
+            assert row.frame_count == 3
+            assert 0.0 <= row.average_confidence <= 1.0
+
+
+def test_video_requires_media_name_and_frame_info(client, sample_bytes):
+    response = client.post(
+        "/detect",
+        files={"file": ("frame.jpg", sample_bytes("pair_men_cold.jpg"), "image/jpeg")},
+        data={"media_type": "video"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_two_concurrent_videos_do_not_cross_contaminate(client, session_factory, sample_bytes):
+    post_video_frame(client, sample_bytes("single_cyclist_unsplash.jpg"), "a.mp4", 0, 2)
+    post_video_frame(client, sample_bytes("pair_men_cold.jpg"), "b.mp4", 0, 2)
+    post_video_frame(client, sample_bytes("small_group_columbia.jpg"), "a.mp4", 1, 2)
+
+    with session_factory() as session:
+        rows = {row.media_name: row for row in session.query(DetectionRecord).all()}
+    assert set(rows) == {"a.mp4"}
+    assert rows["a.mp4"].person_count == 3
+    assert rows["a.mp4"].frame_count == 2
+
+    post_video_frame(client, sample_bytes("empty_street.jpg"), "b.mp4", 1, 2)
+
+    with session_factory() as session:
+        rows = {row.media_name: row for row in session.query(DetectionRecord).all()}
+    assert set(rows) == {"a.mp4", "b.mp4"}
+    assert rows["b.mp4"].person_count == 2
+    assert rows["b.mp4"].frame_count == 2
+
+
+def post_stream_frame(client, data, media_name, name="stream_frame.jpg"):
+    return client.post(
+        "/detect",
+        files={"file": (name, data, "image/jpeg")},
+        data={"media_type": "stream", "media_name": media_name},
+    )
+
+
+def test_stream_frames_save_nothing_until_finalized(client, session_factory, sample_bytes):
+    frames = ["single_cyclist_unsplash.jpg", "pair_men_cold.jpg", "small_group_columbia.jpg"]
+
+    for name in frames:
+        response = post_stream_frame(client, sample_bytes(name), "cam-1")
+        assert response.status_code == 200
+        with session_factory() as session:
+            assert session.query(DetectionRecord).count() == 0
+
+    finalize = client.post("/detect/finalize", json={"media_name": "cam-1"})
+    assert finalize.status_code == 200
+    assert finalize.json() == {"status": "saved", "frame_count": 3}
+
+    with session_factory() as session:
+        rows = session.query(DetectionRecord).all()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.person_count == 3  # the max across the three ticks
+    assert row.media_type == "stream"
+    assert row.media_name == "cam-1"
+    assert row.frame_count == 3
+    assert 0.0 <= row.average_confidence <= 1.0
+
+
+def test_finalize_unknown_session_is_a_no_op(client, session_factory):
+    response = client.post("/detect/finalize", json={"media_name": "never-started"})
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "nothing to finalize"}
+    with session_factory() as session:
+        assert session.query(DetectionRecord).count() == 0
+
+
+def test_stream_requires_media_name(client, sample_bytes):
+    response = client.post(
+        "/detect",
+        files={"file": ("frame.jpg", sample_bytes("pair_men_cold.jpg"), "image/jpeg")},
+        data={"media_type": "stream"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_two_concurrent_streams_do_not_cross_contaminate(client, session_factory, sample_bytes):
+    post_stream_frame(client, sample_bytes("single_cyclist_unsplash.jpg"), "cam-a")
+    post_stream_frame(client, sample_bytes("pair_men_cold.jpg"), "cam-b")
+    post_stream_frame(client, sample_bytes("small_group_columbia.jpg"), "cam-a")
+
+    client.post("/detect/finalize", json={"media_name": "cam-a"})
+    client.post("/detect/finalize", json={"media_name": "cam-b"})
+
+    with session_factory() as session:
+        rows = {row.media_name: row for row in session.query(DetectionRecord).all()}
+    assert rows["cam-a"].person_count == 3
+    assert rows["cam-a"].frame_count == 2
+    assert rows["cam-b"].person_count == 2
+    assert rows["cam-b"].frame_count == 1
+

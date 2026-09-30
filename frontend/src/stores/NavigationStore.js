@@ -8,8 +8,8 @@ export const MODES = {
 
 export const useNavigationStore = create((set, get) => ({
     mode: MODES.NAV,
-    page: 0, // 0 - Detect, 1 - History
-    currPage: 0, // 0 - Detect, 1 - History
+    page: 0, // 0 - Detect, 1 - History, 2 - Stats
+    currPage: 0, // 0 - Detect, 1 - History, 2 - Stats
     selectedItem: 0,
     results: null, // {type: 'upload' | 'history', data: {...}}
 
@@ -18,7 +18,7 @@ export const useNavigationStore = create((set, get) => ({
         const {mode, page} = get()
         if (mode !== MODES.NAV) return
         const next = page + init
-        if (next < 0 || next > 1) return
+        if (next < 0 || next > 2) return
         set({page: next, currPage: next, selectedItem: 0})
     },
 
@@ -51,7 +51,7 @@ export const useNavigationStore = create((set, get) => ({
 
     // Select Page directly via Nav buttons
     selectPage: (targetPage) => {
-        if (targetPage < 0 || targetPage > 1) return;
+        if (targetPage < 0 || targetPage > 2) return;
         set({ mode: MODES.NAV, page: targetPage, currPage: targetPage, selectedItem: 0, results: null });
     },
 

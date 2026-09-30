@@ -20,15 +20,38 @@ const logError = (message, error) => {
 // detect → uploads an image file (JPEG, PNG) via multipart/form-data and returns:
 // { count, boxes: [{x, y, width, height, confidence}], average_confidence, inference_time_ms, processed_image }
 // Box coordinates are in pixels of the original image.
-export const detect = async (file) => {
+//
+// mediaType/mediaName are optional. mediaType="video" plus frameIndex/totalFrames
+// tags a call as one frame of an uploaded video file, so the backend compiles
+// all of that video's frames into a single history row. mediaType="stream" tags
+// it as one tick of a live webcam session (grouped by mediaName, a session id);
+// the backend buffers those too, and the caller must call finalizeStream once
+// the session ends to compile them into a row. Omit both for a plain image upload.
+export const detect = async (file, { signal, mediaType, mediaName, frameIndex, totalFrames } = {}) => {
     const formData = new FormData()
     formData.append(DETECT_FILE_FIELD, file)
+    if (mediaType !== undefined) formData.append('media_type', mediaType)
+    if (mediaName !== undefined) formData.append('media_name', mediaName)
+    if (frameIndex !== undefined) formData.append('frame_index', frameIndex)
+    if (totalFrames !== undefined) formData.append('total_frames', totalFrames)
     try {
         // No manual Content-Type: the browser must set it so the multipart boundary is included.
-        const response = await api.post('/detect', formData)
+        const response = await api.post('/detect', formData, { signal })
         return response.data
     } catch (error) {
         logError("Image upload failed", error)
+        throw error
+    }
+}
+
+// finalizeStream → tells the backend a live webcam session has ended, so it can
+// compile that session's buffered ticks into a single history row.
+export const finalizeStream = async (mediaName) => {
+    try {
+        const response = await api.post('/detect/finalize', { media_name: mediaName })
+        return response.data
+    } catch (error) {
+        logError("Failed to finalize stream session", error)
         throw error
     }
 }
