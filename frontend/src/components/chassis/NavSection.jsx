@@ -1,5 +1,5 @@
 import { useNavigationStore } from "../../stores/NavigationStore";
-import { LuLayoutDashboard, LuArchive } from "react-icons/lu";
+import { LuLayoutDashboard, LuArchive, LuChartBar } from "react-icons/lu";
 import NavButton from './NavButton'
 
 const NavSection = () => {
@@ -14,11 +14,17 @@ const NavSection = () => {
             label='Detect' 
             onClick={() => selectPage(0)}
           />
-          <NavButton 
-            icon={LuArchive} 
-            active={page === 1} 
-            label='History' 
+          <NavButton
+            icon={LuArchive}
+            active={page === 1}
+            label='History'
             onClick={() => selectPage(1)}
+          />
+          <NavButton
+            icon={LuChartBar}
+            active={page === 2}
+            label='Stats'
+            onClick={() => selectPage(2)}
           />
         </div>
     );
