@@ -56,3 +56,7 @@ class HistoryEntry(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class FinalizeRequest(BaseModel):
+    media_name: str
