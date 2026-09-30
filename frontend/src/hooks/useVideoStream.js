@@ -1,8 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useDetection } from './UseDetection';
+import { useQueryClient } from '@tanstack/react-query';
+import { detect, finalizeStream } from '../api/Client';
 import { useDetectionStore } from '../stores/DetectionStore';
 import { useNavigationStore } from '../stores/NavigationStore';
 import { normalizeDetection } from '../utils/detection';
+import { historyQueryKey } from './UseHistory';
 
 // Longest edge of the frame fed to the model. Ultralytics letterboxes to 640
 // anyway, so uploading more than this only adds canvas/JPEG/CLAHE time without
@@ -20,8 +22,9 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
   const isProcessingRef = useRef(false);
   const captureRef = useRef(null);
   const detachListenersRef = useRef(null);
+  const sessionIdRef = useRef(null);
 
-  const { mutateAsync } = useDetection();
+  const queryClient = useQueryClient();
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -104,7 +107,7 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
       // normalize against the canvas size (same ratio as the video itself).
       const imageSize = { width: canvas.width, height: canvas.height };
 
-      const data = await mutateAsync(file);
+      const data = await detect(file, { mediaType: 'stream', mediaName: sessionIdRef.current });
       const result = normalizeDetection(data, imageSize);
 
       useDetectionStore.getState().setResult(result);
@@ -126,7 +129,7 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
       isProcessingRef.current = false;
       scheduleNext();
     }
-  }, [mutateAsync, scheduleNext, handleVideoReady]);
+  }, [scheduleNext, handleVideoReady]);
 
   useEffect(() => {
     captureRef.current = captureAndDetect;
@@ -147,7 +150,15 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
     }
     setIsStreaming(false);
     isProcessingRef.current = false;
-  }, [clearTimer]);
+
+    const sessionId = sessionIdRef.current;
+    sessionIdRef.current = null;
+    if (sessionId) {
+      finalizeStream(sessionId)
+        .then(() => queryClient.invalidateQueries({ queryKey: historyQueryKey }))
+        .catch((err) => console.error('Failed to finalize stream session:', err));
+    }
+  }, [clearTimer, queryClient]);
 
   const startWebcamStream = useCallback(async () => {
     stopStream();
@@ -161,6 +172,7 @@ export function useVideoStream({ intervalMs = 500 } = {}) {
 
       mediaStreamRef.current = stream;
       setIsStreaming(true);
+      sessionIdRef.current = crypto.randomUUID();
 
       useNavigationStore.getState().enterResult({
         type: 'stream',
