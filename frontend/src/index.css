@@ -167,6 +167,18 @@ These are styles that are not in tailwindcss */
     font-family: var(--font-mono);
     white-space: pre-wrap;
   }
+
+  /* Hides the scrollbar entirely (Firefox, WebKit/Blink, legacy Edge) while
+     keeping wheel, trackpad and programmatic scrolling functional. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
  
   .cursor::after {
     content: '█';

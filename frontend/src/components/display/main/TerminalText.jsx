@@ -189,7 +189,7 @@ function TerminalText({ mode, page, results }) {
       {header && (
         <pre className="term text-left text-xs leading-tight font-mono flex-none">{header}</pre>
       )}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar">
         <div className="term cursor text-left text-xs leading-tight font-mono">
           {body.map((line, i) => (
             <div key={i} ref={i === selectedIndex ? selectedRowRef : undefined}>
