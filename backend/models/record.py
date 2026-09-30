@@ -19,6 +19,9 @@ class DetectionRecord(Base):
     person_count = Column(Integer, nullable=False)
     average_confidence = Column(Float, nullable=False)
     inference_time_ms = Column(Float, nullable=False)
+    media_type = Column(String, nullable=False, default="image")
+    media_name = Column(String, nullable=True)
+    frame_count = Column(Integer, nullable=True)
 
 
 def init_db() -> None:
@@ -47,6 +50,9 @@ class HistoryEntry(BaseModel):
     person_count: int
     average_confidence: float
     inference_time_ms: float
+    media_type: str
+    media_name: str | None = None
+    frame_count: int | None = None
 
     class Config:
         from_attributes = True

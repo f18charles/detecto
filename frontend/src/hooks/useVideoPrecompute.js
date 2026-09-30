@@ -186,7 +186,13 @@ export function useVideoPrecompute({ sampleFps = DEFAULT_SAMPLE_FPS } = {}) {
           if (!blob) continue;
 
           const frameFile = new File([blob], 'frame.jpg', { type: 'image/jpeg' });
-          const data = await detect(frameFile, { signal: controller.signal });
+          const data = await detect(frameFile, {
+            signal: controller.signal,
+            mediaType: 'video',
+            mediaName: file.name,
+            frameIndex: i,
+            totalFrames: total,
+          });
           const detections = normalizeDetection(data, {
             width: canvas.width,
             height: canvas.height,
@@ -231,7 +237,8 @@ export function useVideoPrecompute({ sampleFps = DEFAULT_SAMPLE_FPS } = {}) {
             timeline,
           },
         });
-        // Each sampled frame is a history row server-side; refresh the list.
+        // The backend compiles all of this video's frames into one history row,
+        // written when the last frame is sent; refresh the list to pick it up.
         queryClient.invalidateQueries({ queryKey: historyQueryKey });
       } catch (err) {
         if (!cancelRef.current) {

@@ -20,9 +20,18 @@ const logError = (message, error) => {
 // detect → uploads an image file (JPEG, PNG) via multipart/form-data and returns:
 // { count, boxes: [{x, y, width, height, confidence}], average_confidence, inference_time_ms, processed_image }
 // Box coordinates are in pixels of the original image.
-export const detect = async (file, { signal } = {}) => {
+//
+// mediaType/mediaName/frameIndex/totalFrames are optional and only used by the
+// video precompute path: they tag a call as one frame of a video so the backend
+// compiles all of a video's frames into a single history row instead of one per
+// frame. Omit them for a plain image upload or a webcam capture.
+export const detect = async (file, { signal, mediaType, mediaName, frameIndex, totalFrames } = {}) => {
     const formData = new FormData()
     formData.append(DETECT_FILE_FIELD, file)
+    if (mediaType !== undefined) formData.append('media_type', mediaType)
+    if (mediaName !== undefined) formData.append('media_name', mediaName)
+    if (frameIndex !== undefined) formData.append('frame_index', frameIndex)
+    if (totalFrames !== undefined) formData.append('total_frames', totalFrames)
     try {
         // No manual Content-Type: the browser must set it so the multipart boundary is included.
         const response = await api.post('/detect', formData, { signal })
