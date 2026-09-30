@@ -32,6 +32,11 @@ const IDLE_TEXT = [
     body: ['', '[ Press ENTER to browse ]'],
     footer: '',
   },
+  {
+    header: `> STATS\n${SEP36}`,
+    body: ['', '[ Press ENTER to view average crowd size per hour ]'],
+    footer: '',
+  },
 ];
 
 // Uses the browser's local timezone so displayed timestamps agree with the
@@ -81,6 +86,38 @@ function historyRow(values) {
     .join(' | ');
 }
 
+const STATS_BAR_WIDTH = 24;
+
+function statsBar(fraction) {
+  const clamped = Math.min(1, Math.max(0, fraction || 0));
+  const filled = Math.round(clamped * STATS_BAR_WIDTH);
+  return `${'#'.repeat(filled)}${'-'.repeat(STATS_BAR_WIDTH - filled)}`;
+}
+
+// Buckets every history row by hour-of-day (same local-time convention as
+// HistoryFilterStore's time-of-day filter) and averages person_count per hour,
+// over the full, unfiltered history — a standalone overview, not tied to
+// whatever filters happen to be active on the History page.
+function buildHourlyStats(rawRows) {
+  const buckets = Array.from({ length: 24 }, () => ({ count: 0, people: 0 }));
+  for (const row of rawRows) {
+    const hour = new Date(row.timestamp).getHours();
+    if (Number.isNaN(hour)) continue;
+    buckets[hour].count += 1;
+    buckets[hour].people += row.person_count ?? 0;
+  }
+
+  const averages = buckets.map((b) => (b.count > 0 ? b.people / b.count : 0));
+  const maxAvg = Math.max(0, ...averages);
+
+  return buckets.map((b, hour) => {
+    const avg = averages[hour];
+    const label = `${String(hour).padStart(2, '0')}:00`;
+    const avgLabel = b.count > 0 ? avg.toFixed(2) : '—';
+    return `${label} | ${statsBar(maxAvg > 0 ? avg / maxAvg : 0)} | ${pad(avgLabel, 5, false)} (n=${b.count})`;
+  });
+}
+
 function buildListText(page, selectedItem, historyState, filterStore) {
   if (page === 0) {
     return {
@@ -92,6 +129,25 @@ function buildListText(page, selectedItem, historyState, filterStore) {
       ],
       footer: `${SEP45}\n↑/↓ select input · ENTER confirm · ESC back`,
       selectedIndex: selectedItem,
+    };
+  }
+
+  if (page === 2) {
+    const { data: statsRows, isLoading: statsLoading, isError: statsError } = historyState;
+    const header = `> AVERAGE CROWD SIZE PER HOUR\n${SEP45}`;
+
+    if (statsLoading) {
+      return { header, body: ['AWAITING BACKEND CONNECTION...'], footer: `${SEP45}\nESC  back` };
+    }
+    const allStatsRows = Array.isArray(statsRows) ? statsRows : [];
+    if (statsError || allStatsRows.length === 0) {
+      return { header, body: ['No records found in database.'], footer: `${SEP45}\nESC  back` };
+    }
+
+    return {
+      header,
+      body: buildHourlyStats(allStatsRows),
+      footer: `${SEP45}\nHour of day (local time) · avg PEOPLE per detection · n = detections that hour\nESC  back`,
     };
   }
 
@@ -130,7 +186,7 @@ function buildListText(page, selectedItem, historyState, filterStore) {
     return {
       header,
       body: [`No records match current filter parameters (Total: ${allRows.length}).`],
-      footer: `${HISTORY_SEP}\nF conf filter · D date filter · T time filter · X clear filters · C CLEAR HISTORY · ESC back`,
+      footer: `${HISTORY_SEP}\nF conf filter · D date filter · T time filter · X clear filters · E export CSV · C CLEAR HISTORY · ESC back`,
     };
   }
 
@@ -164,7 +220,7 @@ function buildListText(page, selectedItem, historyState, filterStore) {
   return {
     header: `${header}\n${HISTORY_HEADER_ROW}\n${HISTORY_SEP}`,
     body,
-    footer: `${HISTORY_SEP}\nSUMMARY: ${filteredCount} OF ${allRows.length} MATCHING LOGS · ${totalPeople} PEOPLE · ${formatConfidence(meanConf)} MEAN CONF\n${HISTORY_SEP}\n↑/↓ select · ENTER detail · F conf · D date · T time · X clear filters · C CLEAR HISTORY`,
+    footer: `${HISTORY_SEP}\nSUMMARY: ${filteredCount} OF ${allRows.length} MATCHING LOGS · ${totalPeople} PEOPLE · ${formatConfidence(meanConf)} MEAN CONF\n${HISTORY_SEP}\n↑/↓ select · ENTER detail · F conf · D date · T time · X clear filters · E export CSV · C CLEAR HISTORY`,
     selectedIndex: selectedItem,
   };
 }

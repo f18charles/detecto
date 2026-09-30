@@ -122,3 +122,19 @@ describe('TerminalText history table', () => {
     expect(text).toContain('video');
   });
 });
+
+describe('TerminalText stats page', () => {
+  it('buckets both rows into their own hour with the right average', () => {
+    useNavigationStore.setState({ mode: MODES.LIST, page: 2, currPage: 2, selectedItem: 0, results: null });
+    const { container } = render(<TerminalText mode={MODES.LIST} page={2} results={null} />);
+    const { header, rowLines } = layout(container);
+
+    expect(header).toContain('AVERAGE CROWD SIZE PER HOUR');
+    const hour10 = rowLines.find((l) => l.startsWith('10:00'));
+    const hour9 = rowLines.find((l) => l.startsWith('09:00'));
+    expect(hour10).toContain('17.00');
+    expect(hour10).toContain('(n=1)');
+    expect(hour9).toContain('3.00');
+    expect(hour9).toContain('(n=1)');
+  });
+});

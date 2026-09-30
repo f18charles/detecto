@@ -12,6 +12,7 @@ import { historyQueryKey, getCachedHistory } from './UseHistory';
 import { getImageSize } from '../utils/image';
 import { normalizeDetection } from '../utils/detection';
 import { useResetHistory } from './UseResetHistory';
+import { downloadHistoryCsv } from '../utils/csv';
 
 const DETECT_LIST_LENGTH = 3;
 
@@ -203,6 +204,10 @@ export function useKeyboardNav() {
         } else if (key === 'c') {
           e.preventDefault();
           filterStore.requestClearHistory();
+          return;
+        } else if (key === 'e') {
+          e.preventDefault();
+          downloadHistoryCsv(getFilteredHistoryRows());
           return;
         }
       }
