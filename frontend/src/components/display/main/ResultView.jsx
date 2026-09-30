@@ -4,6 +4,54 @@ import ResultCaption from '../ResultCaption';
 import VideoLoading from './VideoLoading';
 import { formatConfidence, formatTime } from '../../../utils/format';
 import { boxesAt } from '../../../utils/timeline';
+import { ALERT_REGION, ALERT_THRESHOLD, countInRegion } from '../../../utils/regionAlert';
+
+// Highlights the fixed "restricted area" region, red/pulsing once it holds
+// more people than ALERT_THRESHOLD.
+function RegionOverlay({ active }) {
+  return (
+    <div
+      className={`absolute pointer-events-none border-2 ${active ? 'border-red-500 animate-pulse' : 'border-white/30'}`}
+      style={{
+        left: `${ALERT_REGION.x1 * 100}%`,
+        top: `${ALERT_REGION.y1 * 100}%`,
+        width: `${(ALERT_REGION.x2 - ALERT_REGION.x1) * 100}%`,
+        height: `${(ALERT_REGION.y2 - ALERT_REGION.y1) * 100}%`,
+      }}
+    />
+  );
+}
+
+// A fading trail of recent detection box-centers, oldest points more
+// transparent. Rolling window only, see useMovementTrail.
+function MovementTrail({ points }) {
+  if (!Array.isArray(points) || points.length === 0) return null;
+  // Fade relative to the most recent sample (points are oldest-first) rather
+  // than the current wall-clock time, so this stays a pure function of props.
+  const now = points[points.length - 1].t;
+  return (
+    <>
+      {points.map((p, i) => {
+        const age = now - p.t;
+        const opacity = Math.max(0, 1 - age / 24000);
+        return (
+          <div
+            key={i}
+            className="absolute pointer-events-none rounded-full bg-emerald-400"
+            style={{
+              left: `${p.cx * 100}%`,
+              top: `${p.cy * 100}%`,
+              width: 6,
+              height: 6,
+              transform: 'translate(-50%, -50%)',
+              opacity,
+            }}
+          />
+        );
+      })}
+    </>
+  );
+}
 
 function ImageStage({ imageUrl, size, children }) {
   const ratio = (size?.width || 4) / (size?.height || 3);
@@ -180,6 +228,8 @@ function ResultView({ result }) {
     const d = result.data;
     const hasDetections = d && Array.isArray(d.detections);
     const label = d?.filename ? `VIDEO: ${d.filename}` : 'LIVE STREAM';
+    const inRegion = countInRegion(d?.detections);
+    const isAlert = inRegion > ALERT_THRESHOLD;
 
     return (
       <div className="screen-image-layer" style={{ display: 'block' }}>
@@ -189,6 +239,8 @@ function ResultView({ result }) {
           size={d?.imageSize}
           onVideoReady={d?.onVideoReady}
         >
+          <RegionOverlay active={isAlert} />
+          <MovementTrail points={d?.trail} />
           {hasDetections &&
             d.detections.map((det, i) => (
               <BoundingBox
@@ -204,7 +256,7 @@ function ResultView({ result }) {
             ))}
         </VideoStage>
         <ResultCaption>
-          {`${label} · ${d?.people ?? 0} ${(d?.people ?? 0) === 1 ? 'PERSON' : 'PEOPLE'} · ${formatConfidence(d?.avgConfidence)} AVG · ${formatTime(d?.inferenceTimeMs)} · ESC STOP`}
+          {`${isAlert ? '[ ALERT: RESTRICTED AREA OVER LIMIT ] · ' : ''}${label} · ${d?.people ?? 0} ${(d?.people ?? 0) === 1 ? 'PERSON' : 'PEOPLE'} · ${formatConfidence(d?.avgConfidence)} AVG · ${formatTime(d?.inferenceTimeMs)} · ESC STOP`}
         </ResultCaption>
       </div>
     );
@@ -213,11 +265,14 @@ function ResultView({ result }) {
   if (result.type === 'upload') {
     const d = result.data;
     const hasResolved = d && Array.isArray(d.detections);
+    const inRegion = hasResolved ? countInRegion(d.detections) : 0;
+    const isAlert = hasResolved && inRegion > ALERT_THRESHOLD;
 
     return (
       <div className="screen-image-layer" style={{ display: 'block' }}>
         {d?.imageUrl && d?.imageSize && (
           <ImageStage imageUrl={d.imageUrl} size={d.imageSize}>
+            {hasResolved && <RegionOverlay active={isAlert} />}
             {hasResolved &&
               d.detections.map((det, i) => (
                 <BoundingBox
@@ -235,7 +290,7 @@ function ResultView({ result }) {
         )}
         {hasResolved ? (
           <ResultCaption>
-            {`UPLOAD: ${d.filename ?? 'image'} · ${d.people} ${d.people === 1 ? 'PERSON' : 'PEOPLE'} · ${formatConfidence(d.avgConfidence)} AVG · ${formatTime(d.inferenceTimeMs)}`}
+            {`${isAlert ? '[ ALERT: RESTRICTED AREA OVER LIMIT ] · ' : ''}UPLOAD: ${d.filename ?? 'image'} · ${d.people} ${d.people === 1 ? 'PERSON' : 'PEOPLE'} · ${formatConfidence(d.avgConfidence)} AVG · ${formatTime(d.inferenceTimeMs)}`}
           </ResultCaption>
         ) : (
           <ResultCaption>ANALYZING…</ResultCaption>
