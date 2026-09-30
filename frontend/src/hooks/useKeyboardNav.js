@@ -7,6 +7,7 @@ import { useHistoryFilterStore } from '../stores/HistoryFilterStore';
 import { useDetection } from './UseDetection';
 import { useFileUpload } from './useFileUpload';
 import { useVideoStream } from './useVideoStream';
+import { useVideoPrecompute } from './useVideoPrecompute';
 import { historyQueryKey, getCachedHistory } from './UseHistory';
 import { getImageSize } from '../utils/image';
 import { normalizeDetection } from '../utils/detection';
@@ -16,10 +17,11 @@ const DETECT_LIST_LENGTH = 3;
 
 export function useKeyboardNav() {
   const queryClient = useQueryClient();
-  const { openFilePicker: openImagePicker } = useFileUpload({ accept: 'image/*' });
+  const { openFilePicker: openImagePicker } = useFileUpload({ accept: 'image/jpeg,image/png,.jpg,.jpeg,.png' });
   const { openFilePicker: openVideoPicker } = useFileUpload({ accept: 'video/*' });
   const { mutate } = useDetection();
-  const { startWebcamStream, startVideoFileStream, stopStream, isStreaming } = useVideoStream();
+  const { startWebcamStream, stopStream, isStreaming } = useVideoStream();
+  const { isPrecomputing, startVideoPrecompute, cancelPrecompute } = useVideoPrecompute();
   
   const { mutate: resetHistory } = useResetHistory();
 
@@ -57,9 +59,11 @@ export function useKeyboardNav() {
 
       openImagePicker({
         onFile: async (file, objectUrl) => {
-          const isImage = file.type ? file.type.startsWith('image/') : /\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name);
+          const isImage = file.type
+            ? ['image/jpeg', 'image/png'].includes(file.type)
+            : /\.(jpe?g|png)$/i.test(file.name);
           if (!isImage) {
-            failDetection('INVALID FILE FORMAT · PLEASE UPLOAD AN IMAGE (JPG/PNG/WEBP)');
+            failDetection('INVALID FILE FORMAT · PLEASE UPLOAD AN IMAGE (JPG/PNG)');
             return;
           }
 
@@ -96,6 +100,9 @@ export function useKeyboardNav() {
                 type: 'upload',
                 data: { imageUrl: objectUrl, imageSize, filename: file.name, ...result },
               });
+              // A finished detection is a new history row; refresh the cached
+              // list so the History view shows it without a manual reload.
+              queryClient.invalidateQueries({ queryKey: historyQueryKey });
             },
             onError: (err) => failDetection(err),
           });
@@ -114,7 +121,7 @@ export function useKeyboardNav() {
             failDetection('INVALID FILE FORMAT · PLEASE UPLOAD A VIDEO (MP4/WEBM/MOV)');
             return;
           }
-          startVideoFileStream(file, objectUrl);
+          startVideoPrecompute(file, objectUrl);
         },
         onCancel: () => {
           useNavigationStore.getState().popUp();
@@ -142,6 +149,7 @@ export function useKeyboardNav() {
 
     function handleKeyDown(e) {
       const power = usePowerStore.getState();
+      const filterStore = useHistoryFilterStore.getState();
 
       if (power.showPowerOffDialog) {
         if (e.key === 'Enter' || e.key.toLowerCase() === 'y') {
@@ -154,9 +162,16 @@ export function useKeyboardNav() {
         return;
       }
 
-      if (e.shiftKey && e.key.toLowerCase() === 'r') {
-        e.preventDefault();
-        resetHistory();
+      // CLEAR HISTORY confirmation gate (opened with C on the History list).
+      if (filterStore.showClearConfirm) {
+        if (e.key === 'Enter' || e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          filterStore.cancelClearHistory();
+          resetHistory();
+        } else if (e.key === 'Escape' || e.key.toLowerCase() === 'n') {
+          e.preventDefault();
+          filterStore.cancelClearHistory();
+        }
         return;
       }
 
@@ -168,9 +183,8 @@ export function useKeyboardNav() {
       // Filter controls in History mode (page === 1)
       if (mode === MODES.LIST && currPage === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
         const key = e.key.toLowerCase();
-        const filterStore = useHistoryFilterStore.getState();
 
-        if (key === 'c') {
+        if (key === 'f') {
           e.preventDefault();
           filterStore.cycleConfidence();
           return;
@@ -185,6 +199,10 @@ export function useKeyboardNav() {
         } else if (key === 'x') {
           e.preventDefault();
           filterStore.resetAllFilters();
+          return;
+        } else if (key === 'c') {
+          e.preventDefault();
+          filterStore.requestClearHistory();
           return;
         }
       }
@@ -214,8 +232,12 @@ export function useKeyboardNav() {
 
       if (mode === MODES.RESULT) {
         if (isBack) {
-          if (isStreaming) stopStream();
-          store.popUp();
+          if (isPrecomputing) {
+            cancelPrecompute();
+          } else {
+            if (isStreaming) stopStream();
+            store.popUp();
+          }
         }
         return;
       }
@@ -224,5 +246,5 @@ export function useKeyboardNav() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
     
-  }, [openImagePicker, openVideoPicker, mutate, queryClient, resetHistory, startWebcamStream, startVideoFileStream, stopStream, isStreaming]);
+  }, [openImagePicker, openVideoPicker, mutate, queryClient, resetHistory, startWebcamStream, stopStream, isStreaming, isPrecomputing, startVideoPrecompute, cancelPrecompute]);
 }

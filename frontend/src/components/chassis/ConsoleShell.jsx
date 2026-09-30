@@ -5,8 +5,10 @@ import StatsScreens from '../display/stats/StatsScreens';
 import PowerButton from './PowerButton';
 
 function ConsoleShell() {
+  // Fixed to the viewport from md up so the screen can never stretch with
+  // content; on small screens the console stacks and scrolls normally.
   return (
-    <div className="silver-body min-h-screen flex flex-col p-3 md:p-4 lg:p-6">
+    <div className="silver-body min-h-screen md:h-screen md:overflow-hidden flex flex-col p-3 md:p-4 lg:p-6">
       <TopBar />
       <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[48px_1fr_180px] lg:grid-cols-[56px_1fr_240px] gap-3 md:gap-4">
         <NavSection />

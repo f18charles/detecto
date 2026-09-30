@@ -25,6 +25,9 @@ export const useHistoryFilterStore = create((set, get) => ({
   timeIndex: 0,
   timeFilter: 'all',
 
+  // Confirmation gate for the destructive "clear history" command.
+  showClearConfirm: false,
+
   cycleConfidence: () => {
     const next = (get().confIndex + 1) % CONFIDENCE_THRESHOLDS.length;
     set({ confIndex: next, minConfidence: CONFIDENCE_THRESHOLDS[next] });
@@ -50,6 +53,10 @@ export const useHistoryFilterStore = create((set, get) => ({
       timeFilter: 'all',
     });
   },
+
+  requestClearHistory: () => set({ showClearConfirm: true }),
+
+  cancelClearHistory: () => set({ showClearConfirm: false }),
 
   filterRows: (rows) => {
     if (!Array.isArray(rows)) return [];

@@ -39,7 +39,16 @@ def test_returns_all_rows_newest_first(client, seeded):
 
     assert response.status_code == 200
     assert counts(response) == [3, 2, 1]
-    assert set(response.json()[0]) == {"id", "timestamp", "person_count", "average_confidence", "inference_time_ms"}
+    assert set(response.json()[0]) == {
+        "id",
+        "timestamp",
+        "person_count",
+        "average_confidence",
+        "inference_time_ms",
+        "media_type",
+        "media_name",
+        "frame_count",
+    }
 
 
 def test_min_confidence_filter(client, seeded):

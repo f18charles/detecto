@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import BoundingBox from './BoundingBox';
 import ResultCaption from '../ResultCaption';
+import VideoLoading from './VideoLoading';
 import { formatConfidence, formatTime } from '../../../utils/format';
+import { boxesAt } from '../../../utils/timeline';
 
 function ImageStage({ imageUrl, size, children }) {
   const ratio = (size?.width || 4) / (size?.height || 3);
@@ -60,7 +62,8 @@ function VideoStage({ stream, videoUrl, size, onVideoReady, children }) {
         autoPlay
         playsInline
         muted
-        loop
+        loop={!!stream}
+        controls={!stream}
         className="w-full h-full object-contain"
       />
       {children}
@@ -68,8 +71,110 @@ function VideoStage({ stream, videoUrl, size, onVideoReady, children }) {
   );
 }
 
+// Plays a precomputed video and draws the boxes for the frame currently on
+// screen, interpolating between samples so the overlay stays locked to the
+// picture instead of trailing it.
+function VideoTimelineStage({ videoUrl, size, timeline }) {
+  const videoRef = useRef(null);
+  const timelineRef = useRef(timeline);
+  const [boxes, setBoxes] = useState([]);
+  const ratio = (size?.width || 16) / (size?.height || 9);
+
+  useEffect(() => {
+    timelineRef.current = timeline;
+  }, [timeline]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+
+    let frameCallbackId = null;
+
+    const apply = (mediaTimeSeconds) => {
+      setBoxes(boxesAt(timelineRef.current, mediaTimeSeconds * 1000));
+    };
+
+    const onFrame = (_now, metadata) => {
+      apply(metadata.mediaTime);
+      frameCallbackId = video.requestVideoFrameCallback(onFrame);
+    };
+    const onTimeUpdate = () => apply(video.currentTime);
+
+    if (typeof video.requestVideoFrameCallback === 'function') {
+      frameCallbackId = video.requestVideoFrameCallback(onFrame);
+    } else {
+      video.addEventListener('timeupdate', onTimeUpdate);
+    }
+
+    return () => {
+      if (frameCallbackId !== null && typeof video.cancelVideoFrameCallback === 'function') {
+        video.cancelVideoFrameCallback(frameCallbackId);
+      }
+      video.removeEventListener('timeupdate', onTimeUpdate);
+    };
+  }, [videoUrl, timeline]);
+
+  return (
+    <div
+      className="image-stage relative"
+      style={{
+        width: `min(100cqw, calc(100cqh * ${ratio}))`,
+        height: `min(100cqh, calc(100cqw / ${ratio}))`,
+      }}
+    >
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        autoPlay
+        playsInline
+        muted
+        controls
+        className="w-full h-full object-contain"
+      />
+      {boxes.map((det, i) => (
+        <BoundingBox
+          key={det.id ?? i}
+          x1={det.x1}
+          y1={det.y1}
+          x2={det.x2}
+          y2={det.y2}
+          confidence={det.confidence}
+          index={i}
+          delayMs={0}
+        />
+      ))}
+    </div>
+  );
+}
+
 function ResultView({ result }) {
   if (!result) return null;
+
+  if (result.type === 'video') {
+    const d = result.data;
+
+    if (!d || d.status !== 'ready' || !Array.isArray(d.timeline)) {
+      return <VideoLoading data={d} />;
+    }
+
+    const peakPeople = d.timeline.reduce(
+      (max, sample) => Math.max(max, sample.detections.length),
+      0
+    );
+
+    return (
+      <div className="screen-image-layer" style={{ display: 'block' }}>
+        <VideoTimelineStage
+          videoUrl={d.videoUrl}
+          size={d.imageSize}
+          timeline={d.timeline}
+        />
+        <ResultCaption>
+          {`VIDEO: ${d.filename ?? 'video'} · ${peakPeople} PEAK ${peakPeople === 1 ? 'PERSON' : 'PEOPLE'} · ${d.timeline.length} SAMPLES · ESC STOP`}
+        </ResultCaption>
+      </div>
+    );
+  }
 
   if (result.type === 'stream') {
     const d = result.data;
