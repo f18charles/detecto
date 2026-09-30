@@ -57,7 +57,7 @@ function pad(str, len, alignLeft = true) {
 // are all generated from this list, so columns stay aligned when one changes.
 // Order is deliberate: name, type, people, avg conf, inference time, timestamp.
 const HISTORY_COLUMNS = [
-  { label: 'NAME', width: 20, align: 'left' },
+  { label: 'NAME', width: 28, align: 'left' },
   { label: 'TYPE', width: 6, align: 'left' },
   { label: 'PEOPLE', width: 6, align: 'right' },
   { label: 'AVG CONF', width: 8, align: 'right' },
