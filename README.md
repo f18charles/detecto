@@ -26,7 +26,7 @@ A real-time person detection and counting system. Upload an image or a video fil
 ```
 
 ### Inference & Frontend Processing:
-- **Model**: `yolov8n.pt`, pretrained on COCO, filtered to the `person` class (`conf ≥ 0.4`). Model warm-up occurs on server startup so the one-time load cost never lands on the first request.
+- **Model**: `yolov8n.pt`, pretrained on COCO, filtered to the `person` class (`conf ≥ 0.4`). Model warm-up occurs on server startup so the one-time load cost does not land on the first request.
 - **Preprocessing**: OpenCV CLAHE contrast adjustment on the backend; frame scaling, canvas normalization and JPEG encoding on the frontend.
 - **Live Stream Engine**: Captures webcam frames via an HTML5 canvas and posts them to `/detect`, scheduling the next capture only after the previous response returns.
 - **Video Upload Pipeline**: The browser seeks a detached `<video>` at 8 Hz, sends each ≤640 px frame with `media_type=video`, then builds a track-id timeline. Playback interpolates boxes between samples so the overlay stays locked to the picture instead of trailing it.
