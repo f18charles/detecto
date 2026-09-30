@@ -1,6 +1,7 @@
 import TerminalText from '../display/main/TerminalText';
 import ResultView from '../display/main/ResultView';
 import PowerOffDialog from './PowerOffDialog';
+import ResetHistoryDialog from './ResetHistoryDialog';
 import { MODES, useNavigationStore } from '../../stores/NavigationStore';
 import { usePowerStore } from '../../stores/PowerStore';
 import { useScreenTransition } from '../../hooks/useScreenTransition';
@@ -66,6 +67,7 @@ function ScreenBezel() {
           </>
         )}
         <PowerOffDialog />
+        <ResetHistoryDialog />
         <div className="scanlines" />
         <div className="crt-vignette" />
         <div className="crt-glass-reflection" />

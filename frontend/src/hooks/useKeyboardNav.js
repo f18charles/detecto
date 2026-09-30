@@ -149,6 +149,7 @@ export function useKeyboardNav() {
 
     function handleKeyDown(e) {
       const power = usePowerStore.getState();
+      const filterStore = useHistoryFilterStore.getState();
 
       if (power.showPowerOffDialog) {
         if (e.key === 'Enter' || e.key.toLowerCase() === 'y') {
@@ -161,9 +162,16 @@ export function useKeyboardNav() {
         return;
       }
 
-      if (e.shiftKey && e.key.toLowerCase() === 'r') {
-        e.preventDefault();
-        resetHistory();
+      // CLEAR HISTORY confirmation gate (opened with C on the History list).
+      if (filterStore.showClearConfirm) {
+        if (e.key === 'Enter' || e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          filterStore.cancelClearHistory();
+          resetHistory();
+        } else if (e.key === 'Escape' || e.key.toLowerCase() === 'n') {
+          e.preventDefault();
+          filterStore.cancelClearHistory();
+        }
         return;
       }
 
@@ -175,9 +183,8 @@ export function useKeyboardNav() {
       // Filter controls in History mode (page === 1)
       if (mode === MODES.LIST && currPage === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
         const key = e.key.toLowerCase();
-        const filterStore = useHistoryFilterStore.getState();
 
-        if (key === 'c') {
+        if (key === 'f') {
           e.preventDefault();
           filterStore.cycleConfidence();
           return;
@@ -192,6 +199,10 @@ export function useKeyboardNav() {
         } else if (key === 'x') {
           e.preventDefault();
           filterStore.resetAllFilters();
+          return;
+        } else if (key === 'c') {
+          e.preventDefault();
+          filterStore.requestClearHistory();
           return;
         }
       }

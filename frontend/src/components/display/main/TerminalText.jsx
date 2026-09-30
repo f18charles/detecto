@@ -102,7 +102,7 @@ function buildListText(page, selectedItem, historyState, filterStore) {
     return {
       header,
       body: [`No records match current filter parameters (Total: ${allRows.length}).`],
-      footer: `${SEP69}\nC conf filter · D date filter · T time filter · X clear filters · ESC back`,
+      footer: `${SEP69}\nF conf filter · D date filter · T time filter · X clear filters · C CLEAR HISTORY · ESC back`,
     };
   }
 
@@ -133,7 +133,7 @@ function buildListText(page, selectedItem, historyState, filterStore) {
   return {
     header: `${header}\n  #  | TIMESTAMP            | PEOPLE | AVG CONF | INFERENCE TIME\n${SEP69}`,
     body,
-    footer: `${SEP69}\nSUMMARY: ${filteredCount} OF ${allRows.length} MATCHING LOGS · ${totalPeople} PEOPLE · ${formatConfidence(meanConf)} MEAN CONF\n${SEP69}\n↑/↓ select · ENTER detail · C conf · D date · T time · X clear filters`,
+    footer: `${SEP69}\nSUMMARY: ${filteredCount} OF ${allRows.length} MATCHING LOGS · ${totalPeople} PEOPLE · ${formatConfidence(meanConf)} MEAN CONF\n${SEP69}\n↑/↓ select · ENTER detail · F conf · D date · T time · X clear filters · C CLEAR HISTORY`,
     selectedIndex: selectedItem,
   };
 }
@@ -182,8 +182,10 @@ function TerminalText({ mode, page, results }) {
     selectedRowRef.current?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex, bodyLength]);
 
+  // The text block shrinks to its content and centers as a unit, so the
+  // monospace columns stay aligned instead of each line centering on its own.
   return (
-    <div className="flex-1 min-h-0 flex flex-col items-stretch w-full h-full mx-auto z-10 select-none">
+    <div className="flex-1 min-h-0 flex flex-col w-fit max-w-full h-full mx-auto z-10 select-none">
       {header && (
         <pre className="term text-left text-xs leading-tight font-mono flex-none">{header}</pre>
       )}
