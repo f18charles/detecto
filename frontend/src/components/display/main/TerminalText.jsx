@@ -53,6 +53,34 @@ function pad(str, len, alignLeft = true) {
   return alignLeft ? s.padEnd(len, ' ') : s.padStart(len, ' ');
 }
 
+// History table layout. The header row, every data row and the horizontal rule
+// are all generated from this list, so columns stay aligned when one changes.
+// Order is deliberate: name, type, people, avg conf, inference time, timestamp.
+const HISTORY_COLUMNS = [
+  { label: 'NAME', width: 20, align: 'left' },
+  { label: 'TYPE', width: 6, align: 'left' },
+  { label: 'PEOPLE', width: 6, align: 'right' },
+  { label: 'AVG CONF', width: 8, align: 'right' },
+  { label: 'INFERENCE TIME', width: 14, align: 'right' },
+  { label: 'TIMESTAMP', width: 20, align: 'left' },
+];
+
+const HISTORY_TABLE_WIDTH =
+  HISTORY_COLUMNS.reduce((w, col) => w + col.width, 0) + (HISTORY_COLUMNS.length - 1) * 3;
+const HISTORY_SEP = '-'.repeat(HISTORY_TABLE_WIDTH + 2);
+const HISTORY_HEADER_ROW = `  ${HISTORY_COLUMNS.map((col) =>
+  col.align === 'right' ? pad(col.label, col.width, false) : pad(col.label, col.width)
+).join(' | ')}`;
+
+function historyRow(values) {
+  return values
+    .map((value, i) => {
+      const col = HISTORY_COLUMNS[i];
+      return col.align === 'right' ? pad(value, col.width, false) : pad(value, col.width);
+    })
+    .join(' | ');
+}
+
 function buildListText(page, selectedItem, historyState, filterStore) {
   if (page === 0) {
     return {
@@ -77,13 +105,13 @@ function buildListText(page, selectedItem, historyState, filterStore) {
   const timeLabel = timeObj ? timeObj.label : 'ALL';
 
   const filterHeader = `FILTERS: CONF [${confLabel}] (C) · DATE [${dateLabel}] (D) · TIME [${timeLabel}] (T)`;
-  const header = `> HISTORY LOG DATABASE\n  ${filterHeader}\n${SEP69}`;
+  const header = `> HISTORY LOG DATABASE\n  ${filterHeader}\n${HISTORY_SEP}`;
 
   if (isLoading) {
     return {
       header,
       body: ['AWAITING BACKEND CONNECTION...'],
-      footer: `${SEP69}\nESC  back`,
+      footer: `${HISTORY_SEP}\nESC  back`,
     };
   }
 
@@ -94,7 +122,7 @@ function buildListText(page, selectedItem, historyState, filterStore) {
     return {
       header,
       body: ['No records found in database.'],
-      footer: `${SEP69}\nESC  back`,
+      footer: `${HISTORY_SEP}\nESC  back`,
     };
   }
 
@@ -102,7 +130,7 @@ function buildListText(page, selectedItem, historyState, filterStore) {
     return {
       header,
       body: [`No records match current filter parameters (Total: ${allRows.length}).`],
-      footer: `${SEP69}\nF conf filter · D date filter · T time filter · X clear filters · C CLEAR HISTORY · ESC back`,
+      footer: `${HISTORY_SEP}\nF conf filter · D date filter · T time filter · X clear filters · C CLEAR HISTORY · ESC back`,
     };
   }
 
@@ -113,27 +141,30 @@ function buildListText(page, selectedItem, historyState, filterStore) {
   const meanConf = filteredCount > 0 ? sumConf / filteredCount : 0;
 
   const body = rows.map((row, i) => {
-    const isSelected = i === selectedItem;
-    const prefix = isSelected ? '> ' : '  ';
-    const num = pad(String(i + 1).padStart(2, '0'), 2);
+    const prefix = i === selectedItem ? '> ' : '  ';
     let timeStr = '—';
     try {
       timeStr = dateTimeFormatter.format(new Date(row.timestamp));
     } catch {
-      timeStr = pad(String(row.timestamp).slice(0, 19), 20);
+      timeStr = String(row.timestamp).slice(0, 19);
     }
-    const ts = pad(timeStr, 20);
-    const count = pad(String(row.person_count ?? '—'), 6, false);
-    const conf = pad(formatConfidence(row.average_confidence), 8, false);
-    const infTime = pad(`${fourDecimals.format(row.inference_time_ms ?? 0)} ms`, 14, false);
 
-    return `${prefix}${num} | ${ts} | ${count} | ${conf} | ${infTime}`;
+    const cells = [
+      row.media_name ?? '—',
+      row.media_type ?? '—',
+      String(row.person_count ?? '—'),
+      formatConfidence(row.average_confidence),
+      `${fourDecimals.format(row.inference_time_ms ?? 0)} ms`,
+      timeStr,
+    ];
+
+    return `${prefix}${historyRow(cells)}`;
   });
 
   return {
-    header: `${header}\n  #  | TIMESTAMP            | PEOPLE | AVG CONF | INFERENCE TIME\n${SEP69}`,
+    header: `${header}\n${HISTORY_HEADER_ROW}\n${HISTORY_SEP}`,
     body,
-    footer: `${SEP69}\nSUMMARY: ${filteredCount} OF ${allRows.length} MATCHING LOGS · ${totalPeople} PEOPLE · ${formatConfidence(meanConf)} MEAN CONF\n${SEP69}\n↑/↓ select · ENTER detail · F conf · D date · T time · X clear filters · C CLEAR HISTORY`,
+    footer: `${HISTORY_SEP}\nSUMMARY: ${filteredCount} OF ${allRows.length} MATCHING LOGS · ${totalPeople} PEOPLE · ${formatConfidence(meanConf)} MEAN CONF\n${HISTORY_SEP}\n↑/↓ select · ENTER detail · F conf · D date · T time · X clear filters · C CLEAR HISTORY`,
     selectedIndex: selectedItem,
   };
 }
@@ -149,6 +180,8 @@ function buildHistoryDetailText(row) {
   return {
     header: `> HISTORY RECORD DETAIL\n${SEP69}`,
     body: [
+      `MEDIA NAME         : ${row.media_name ?? '—'}`,
+      `MEDIA TYPE         : ${row.media_type ?? '—'}`,
       `TIMESTAMP          : ${timeStr}`,
       `PEOPLE DETECTED    : ${row.person_count ?? '—'}`,
       `AVERAGE CONFIDENCE : ${formatConfidence(row.average_confidence ?? 0)}`,
