@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import BoundingBox from './BoundingBox';
 import ResultCaption from '../ResultCaption';
 import { formatConfidence, formatTime } from '../../../utils/format';
@@ -18,8 +19,34 @@ function ImageStage({ imageUrl, size, children }) {
   );
 }
 
-function VideoStage({ videoRef, size, children }) {
+function VideoStage({ stream, videoUrl, size, onVideoReady, children }) {
+  const videoRef = useRef(null);
   const ratio = (size?.width || 16) / (size?.height || 9);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (stream) {
+      video.srcObject = stream;
+    } else if (videoUrl) {
+      video.src = videoUrl;
+    }
+
+    const playVideo = async () => {
+      try {
+        await video.play();
+      } catch (err) {
+        console.error('Video play error:', err);
+      }
+    };
+
+    playVideo();
+    if (onVideoReady) {
+      onVideoReady(video);
+    }
+  }, [stream, videoUrl, onVideoReady]);
+
   return (
     <div
       className="image-stage relative"
@@ -33,6 +60,7 @@ function VideoStage({ videoRef, size, children }) {
         autoPlay
         playsInline
         muted
+        loop
         className="w-full h-full object-contain"
       />
       {children}
@@ -46,10 +74,16 @@ function ResultView({ result }) {
   if (result.type === 'stream') {
     const d = result.data;
     const hasDetections = d && Array.isArray(d.detections);
+    const label = d?.filename ? `VIDEO: ${d.filename}` : 'LIVE STREAM';
 
     return (
       <div className="screen-image-layer" style={{ display: 'block' }}>
-        <VideoStage videoRef={d?.videoRef} size={d?.imageSize}>
+        <VideoStage
+          stream={d?.stream}
+          videoUrl={d?.videoUrl}
+          size={d?.imageSize}
+          onVideoReady={d?.onVideoReady}
+        >
           {hasDetections &&
             d.detections.map((det, i) => (
               <BoundingBox
@@ -65,7 +99,7 @@ function ResultView({ result }) {
             ))}
         </VideoStage>
         <ResultCaption>
-          {`LIVE STREAM · ${d?.people ?? 0} ${(d?.people ?? 0) === 1 ? 'PERSON' : 'PEOPLE'} · ${formatConfidence(d?.avgConfidence)} AVG · ${formatTime(d?.inferenceTimeMs)} · ESC STOP`}
+          {`${label} · ${d?.people ?? 0} ${(d?.people ?? 0) === 1 ? 'PERSON' : 'PEOPLE'} · ${formatConfidence(d?.avgConfidence)} AVG · ${formatTime(d?.inferenceTimeMs)} · ESC STOP`}
         </ResultCaption>
       </div>
     );

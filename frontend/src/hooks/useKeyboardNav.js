@@ -6,19 +6,20 @@ import { useDetectionStore } from '../stores/DetectionStore';
 import { useHistoryFilterStore } from '../stores/HistoryFilterStore';
 import { useDetection } from './UseDetection';
 import { useFileUpload } from './useFileUpload';
-import { useWebcamStream } from './useWebcamStream';
+import { useVideoStream } from './useVideoStream';
 import { historyQueryKey, getCachedHistory } from './UseHistory';
 import { getImageSize } from '../utils/image';
 import { normalizeDetection } from '../utils/detection';
 import { useResetHistory } from './UseResetHistory';
 
-const DETECT_LIST_LENGTH = 2;
+const DETECT_LIST_LENGTH = 3;
 
 export function useKeyboardNav() {
   const queryClient = useQueryClient();
-  const { openFilePicker } = useFileUpload({ accept: 'image/*' });
+  const { openFilePicker: openImagePicker } = useFileUpload({ accept: 'image/*' });
+  const { openFilePicker: openVideoPicker } = useFileUpload({ accept: 'video/*' });
   const { mutate } = useDetection();
-  const { startStream, stopStream, isStreaming } = useWebcamStream();
+  const { startWebcamStream, startVideoFileStream, stopStream, isStreaming } = useVideoStream();
   
   const { mutate: resetHistory } = useResetHistory();
 
@@ -51,10 +52,10 @@ export function useKeyboardNav() {
       useNavigationStore.getState().popUp();
     }
 
-    function startUpload() {
+    function startUploadImage() {
       useNavigationStore.getState().enterResult({ type: 'upload', data: null });
 
-      openFilePicker({
+      openImagePicker({
         onFile: async (file, objectUrl) => {
           const isImage = file.type ? file.type.startsWith('image/') : /\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name);
           if (!isImage) {
@@ -105,13 +106,31 @@ export function useKeyboardNav() {
       });
     }
 
+    function startUploadVideo() {
+      openVideoPicker({
+        onFile: (file, objectUrl) => {
+          const isVideo = file.type ? file.type.startsWith('video/') : /\.(mp4|webm|mov|m4v|avi)$/i.test(file.name);
+          if (!isVideo) {
+            failDetection('INVALID FILE FORMAT · PLEASE UPLOAD A VIDEO (MP4/WEBM/MOV)');
+            return;
+          }
+          startVideoFileStream(file, objectUrl);
+        },
+        onCancel: () => {
+          useNavigationStore.getState().popUp();
+        },
+      });
+    }
+
     function handleListConfirm(page, selectedItem) {
       const store = useNavigationStore.getState();
       if (page === 0) {
         if (selectedItem === 0) {
-          startUpload();
+          startUploadImage();
         } else if (selectedItem === 1) {
-          startStream();
+          startUploadVideo();
+        } else if (selectedItem === 2) {
+          startWebcamStream();
         }
       } else if (page === 1) {
         const filteredRows = getFilteredHistoryRows();
@@ -205,5 +224,5 @@ export function useKeyboardNav() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
     
-  }, [openFilePicker, mutate, queryClient, resetHistory, startStream, stopStream, isStreaming]);
+  }, [openImagePicker, openVideoPicker, mutate, queryClient, resetHistory, startWebcamStream, startVideoFileStream, stopStream, isStreaming]);
 }
